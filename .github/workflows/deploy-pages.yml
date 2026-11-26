@@ -35,6 +35,8 @@ jobs:
         run: bun install
 
       - name: Build production bundle
+        env:
+          VITE_BASE_PATH: /${{ github.event.repository.name }}/
         run: bun run build
 
       - name: Setup Pages

@@ -31,15 +31,17 @@ import {
 } from '../types/medicalSchool';
 import { createDefaultEnabledItemsMap } from './evaluationFormsSchema';
 
+const ASSET_BASE = import.meta.env.BASE_URL || './';
+
 export const IMAGE_ASSETS = {
-  heroSurinMec: './src/assets/images/hero_modern_mec_1795660880723.jpg',
-  clinicalSkillsSim: './src/assets/images/clinical_skills_sim_1795501680672.jpg',
-  wardRoundTeaching: './src/assets/images/ward_round_teaching_1795501680286.jpg',
-  medicalLibraryStudy: './src/assets/images/medical_library_study_1795501680676.jpg',
-  studentMaleExtern: './src/assets/images/student_male_extern_1795505450579.jpg',
-  studentFemaleMed1: './src/assets/images/student_female_med1_1795505449339.jpg',
-  studentFemaleMed2: './src/assets/images/student_female_med2_1795505450327.jpg',
-  studentMaleMed2: './src/assets/images/student_male_med2_1795505450611.jpg',
+  heroSurinMec: `${ASSET_BASE}src/assets/images/hero_modern_mec_1795660880723.jpg`,
+  clinicalSkillsSim: `${ASSET_BASE}src/assets/images/clinical_skills_sim_1795501680672.jpg`,
+  wardRoundTeaching: `${ASSET_BASE}src/assets/images/ward_round_teaching_1795501680286.jpg`,
+  medicalLibraryStudy: `${ASSET_BASE}src/assets/images/medical_library_study_1795501680676.jpg`,
+  studentMaleExtern: `${ASSET_BASE}src/assets/images/student_male_extern_1795505450579.jpg`,
+  studentFemaleMed1: `${ASSET_BASE}src/assets/images/student_female_med1_1795505449339.jpg`,
+  studentFemaleMed2: `${ASSET_BASE}src/assets/images/student_female_med2_1795505450327.jpg`,
+  studentMaleMed2: `${ASSET_BASE}src/assets/images/student_male_med2_1795505450611.jpg`,
 } as const;
 
 export const INITIAL_CONFERENCES: ConferenceEvent[] = [

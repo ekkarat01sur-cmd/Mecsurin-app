@@ -6,8 +6,9 @@ import {defineConfig} from 'vite';
 import {VitePWA} from 'vite-plugin-pwa';
 
 export default defineConfig(() => {
+  const basePath = process.env.VITE_BASE_PATH || './';
   return {
-    base: './',
+    base: basePath,
     plugins: [
       react(),
       tailwindcss(),
@@ -21,7 +22,7 @@ export default defineConfig(() => {
           'pwa-maskable-512x512.png',
         ],
         manifest: {
-          id: './',
+          id: basePath,
           name: 'ศูนย์แพทยศาสตรศึกษาชั้นคลินิก โรงพยาบาลสุรินทร์',
           short_name: 'ศพค.สุรินทร์',
           description:
@@ -30,8 +31,8 @@ export default defineConfig(() => {
           background_color: '#F2F6FB',
           display: 'standalone',
           orientation: 'any',
-          start_url: './',
-          scope: './',
+          start_url: basePath,
+          scope: basePath,
           lang: 'th',
           icons: [
             {
