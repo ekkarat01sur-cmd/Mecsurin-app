@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>ศูนย์แพทยศาสตรศึกษาชั้นคลินิก โรงพยาบาลสุรินทร์</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Noto+Serif+Thai:wght@600;700&display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      body {
+        font-family: 'IBM Plex Sans Thai', system-ui, -apple-system, sans-serif;
+        background-color: #f2f6fb;
+        background-image:
+          radial-gradient(at 0% 0%, rgba(13, 148, 136, 0.08) 0px, transparent 50%),
+          radial-gradient(at 100% 0%, rgba(9, 26, 50, 0.07) 0px, transparent 50%),
+          radial-gradient(rgba(15, 42, 74, 0.06) 1px, transparent 1px);
+        background-size: 100% 100%, 100% 100%, 24px 24px;
+        color: #0f172a;
+      }
+      .font-serif-th {
+        font-family: 'Noto Serif Thai', Georgia, serif;
+      }
+      .font-mono-num {
+        font-family: 'JetBrains Mono', monospace;
+        font-variant-numeric: tabular-nums;
+      }
+      .clinical-card {
+        background: #ffffff;
+        border: 1px solid rgba(15, 42, 74, 0.09);
+        box-shadow: 0 1px 2px rgba(9, 26, 50, 0.04), 0 8px 24px -12px rgba(9, 26, 50, 0.08);
+      }
+    </style>
+  </head>
+  <body class="min-h-screen flex flex-col">
+    <!-- Top Header -->
+    <header class="sticky top-0 z-30 bg-[#091A32]/95 backdrop-blur-md border-b border-white/10 text-white">
+      <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+        <div class="min-w-0">
+          <div class="font-serif-th text-base sm:text-lg font-bold tracking-tight truncate">
+            ศพค. โรงพยาบาลสุรินทร์
+          </div>
+          <div class="text-[11px] text-slate-300 font-mono-num truncate">
+            Sheet: 1iwYYWj_IRqdf9IcXzBtoprQgjvEE6w2ghmBSyiHo9LE
+          </div>
+        </div>
+        <div class="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onclick="initSheets()"
+            class="px-3 py-2 text-xs font-medium text-slate-200 bg-white/10 hover:bg-white/15 border border-white/15 rounded-lg whitespace-nowrap cursor-pointer"
+          >
+            สร้างหัวตาราง Sheet
+          </button>
+          <button
+            type="button"
+            onclick="loadAll()"
+            class="px-3.5 py-2 text-xs font-semibold text-[#06202A] bg-[#2DD4BF] hover:bg-[#5EEAD4] rounded-lg whitespace-nowrap cursor-pointer"
+          >
+            รีเฟรชข้อมูล
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <div class="bg-white/85 backdrop-blur-md border-b border-slate-200">
+      <div class="max-w-6xl mx-auto px-4 sm:px-6 flex items-center gap-2 overflow-x-auto py-2">
+        <button onclick="switchTab('overview')" id="tab-overview" class="tab-btn px-3.5 py-2 text-sm font-semibold rounded-lg bg-[#091A32] text-white whitespace-nowrap cursor-pointer">ภาพรวมและประกาศ</button>
+        <button onclick="switchTab('logbook')" id="tab-logbook" class="tab-btn px-3.5 py-2 text-sm font-medium rounded-lg text-slate-600 hover:bg-slate-100 whitespace-nowrap cursor-pointer">E-Logbook คลินิก</button>
+        <button onclick="switchTab('shifts')" id="tab-shifts" class="tab-btn px-3.5 py-2 text-sm font-medium rounded-lg text-slate-600 hover:bg-slate-100 whitespace-nowrap cursor-pointer">ตารางเวรปฏิบัติงาน</button>
+        <button onclick="switchTab('evaluations')" id="tab-evaluations" class="tab-btn px-3.5 py-2 text-sm font-medium rounded-lg text-slate-600 hover:bg-slate-100 whitespace-nowrap cursor-pointer">ประเมินผลและเกรด MPL</button>
+      </div>
+    </div>
+
+    <!-- Main Container -->
+    <main class="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-6 space-y-6">
+      <!-- KPI Strip -->
+      <section class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="clinical-card rounded-2xl p-4">
+          <div class="text-xs font-medium text-slate-500">รายการ E-Logbook ทั้งหมด</div>
+          <div id="kpi-logbooks" class="mt-1 text-2xl font-bold text-[#091A32] font-mono-num">0</div>
+        </div>
+        <div class="clinical-card rounded-2xl p-4">
+          <div class="text-xs font-medium text-slate-500">รออาจารย์แพทย์รับรอง</div>
+          <div id="kpi-pending" class="mt-1 text-2xl font-bold text-amber-600 font-mono-num">0</div>
+        </div>
+        <div class="clinical-card rounded-2xl p-4">
+          <div class="text-xs font-medium text-slate-500">เวรปฏิบัติงานในตาราง</div>
+          <div id="kpi-shifts" class="mt-1 text-2xl font-bold text-[#0D9488] font-mono-num">0</div>
+        </div>
+        <div class="clinical-card rounded-2xl p-4">
+          <div class="text-xs font-medium text-slate-500">ผลประเมินอาจารย์ (Forms)</div>
+          <div id="kpi-evals" class="mt-1 text-2xl font-bold text-[#091A32] font-mono-num">0</div>
+        </div>
+      </section>
+
+      <!-- Tab: Overview -->
+      <section id="panel-overview" class="space-y-6">
+        <div class="clinical-card rounded-2xl p-5 sm:p-6">
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pb-4 border-b border-slate-200">
+            <div>
+              <h2 class="text-base font-bold text-[#091A32]">ประกาศศูนย์แพทยศาสตรศึกษาชั้นคลินิก</h2>
+              <p id="sync-time" class="text-xs text-slate-500 mt-0.5">กำลังโหลดข้อมูลจาก Google Sheet...</p>
+            </div>
+          </div>
+          <div id="announcements-list" class="mt-4 space-y-3"></div>
+        </div>
+      </section>
+
+      <!-- Tab: E-Logbook -->
+      <section id="panel-logbook" class="hidden space-y-6">
+        <div class="clinical-card rounded-2xl p-5 sm:p-6">
+          <h2 class="text-base font-bold text-[#091A32] mb-4">บันทึกเคสคลินิก / หัตถการใหม่ลง Google Sheet</h2>
+          <form onsubmit="submitLogbook(event)" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1">กลุ่มงานคลินิก</label>
+              <select id="lb-dept" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg bg-white">
+                <option>กลุ่มงานอายุรศาสตร์</option>
+                <option>กลุ่มงานศัลยศาสตร์</option>
+                <option>กลุ่มงานกุมารเวชศาสตร์</option>
+                <option>กลุ่มงานสูติศาสตร์-นรีเวชวิทยา</option>
+                <option>กลุ่มงานเวชศาสตร์ฉุกเฉิน</option>
+                <option>กลุ่มงานออร์โธปิดิกส์</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1">สถานที่ (Setting)</label>
+              <select id="lb-setting" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg bg-white">
+                <option>IPD</option>
+                <option>OPD</option>
+                <option>ER</option>
+                <option>OR</option>
+                <option>LR</option>
+                <option>Community</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1">บทบาท (Role)</label>
+              <select id="lb-role" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg bg-white">
+                <option>Perform</option>
+                <option>Assist</option>
+                <option>Observe</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1">การวินิจฉัย (Diagnosis)</label>
+              <input id="lb-diag" required placeholder="เช่น Acute Appendicitis" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg" />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1">รหัส ICD-10</label>
+              <input id="lb-icd10" placeholder="เช่น K35.8" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg font-mono-num" />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1">หัตถการที่ปฏิบัติ (Procedure)</label>
+              <input id="lb-proc" required placeholder="เช่น Arterial Blood Gas" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg" />
+            </div>
+            <div class="sm:col-span-2">
+              <label class="block text-xs font-medium text-slate-600 mb-1">สรุปผู้ป่วยและการเรียนรู้ (Reflection)</label>
+              <input id="lb-reflection" required placeholder="สรุปประเด็นสำคัญที่ได้เรียนรู้จากเคสนี้" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg" />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1">อาจารย์ผู้ควบคุม (Preceptor)</label>
+              <input id="lb-preceptor" required value="นพ. เอกรัตน์ วัฒนสุรินทร์" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg" />
+            </div>
+            <div class="sm:col-span-2 lg:col-span-3 flex justify-end pt-1">
+              <button type="submit" class="px-4 py-2.5 text-sm font-semibold text-white bg-[#0D9488] hover:bg-[#0F766E] rounded-lg cursor-pointer">
+                บันทึกลง Google Sheet
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <div class="clinical-card rounded-2xl p-5 sm:p-6 overflow-x-auto">
+          <h3 class="text-sm font-bold text-[#091A32] mb-3">รายการบันทึก E-Logbook ล่าสุด</h3>
+          <table class="w-full text-left border-collapse text-xs sm:text-sm min-w-[680px]">
+            <thead>
+              <tr class="border-b border-slate-200 text-slate-500">
+                <th class="py-2 pr-3">วันที่</th>
+                <th class="py-2 pr-3">กลุ่มงาน / Setting</th>
+                <th class="py-2 pr-3">การวินิจฉัย & หัตถการ</th>
+                <th class="py-2 pr-3">อาจารย์</th>
+                <th class="py-2 pr-3">สถานะ</th>
+                <th class="py-2 text-right">รับรอง</th>
+              </tr>
+            </thead>
+            <tbody id="logbook-tbody" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Tab: Duty Shifts -->
+      <section id="panel-shifts" class="hidden">
+        <div class="clinical-card rounded-2xl p-5 sm:p-6 overflow-x-auto">
+          <h2 class="text-base font-bold text-[#091A32] mb-3">ตารางเวรปฏิบัติงานคลินิก (Duty Shifts)</h2>
+          <table class="w-full text-left border-collapse text-xs sm:text-sm min-w-[680px]">
+            <thead>
+              <tr class="border-b border-slate-200 text-slate-500">
+                <th class="py-2 pr-3">วันที่</th>
+                <th class="py-2 pr-3">หอผู้ป่วย / กลุ่มงาน</th>
+                <th class="py-2 pr-3">ช่วงเวลา</th>
+                <th class="py-2 pr-3">นักศึกษาแพทย์</th>
+                <th class="py-2 pr-3">ลงเวลาเข้าเวร</th>
+                <th class="py-2 text-right">ดำเนินการ</th>
+              </tr>
+            </thead>
+            <tbody id="shifts-tbody" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Tab: Evaluations & Grades -->
+      <section id="panel-evaluations" class="hidden space-y-6">
+        <div class="clinical-card rounded-2xl p-5 sm:p-6">
+          <h2 class="text-base font-bold text-[#091A32] mb-4">บันทึกแบบประเมินอาจารย์แพทย์ (Form A / B / C / E)</h2>
+          <form onsubmit="submitEvaluation(event)" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1">ประเภทแบบประเมิน</label>
+              <select id="ev-type" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg bg-white">
+                <option value="form_a">Form A (ทักษะทางคลินิก/เวชระเบียน)</option>
+                <option value="form_b">Form B (การนำเสนอผู้ป่วย)</option>
+                <option value="form_c">Form C (การปฏิบัติงานคลินิก)</option>
+                <option value="well_baby">Well Baby Clinic</option>
+                <option value="form_e">Form E (เจตคติและจริยธรรมวิชาชีพ)</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1">รหัสรายวิชา</label>
+              <input id="ev-course" required value="SUR-MED-401" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg font-mono-num" />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1">ชื่อ-สกุล นักศึกษาแพทย์</label>
+              <input id="ev-student" required placeholder="เช่น นศพ. ธนภัทร ศรีสุรินทร์" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg" />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1">คะแนนที่ได้ (Raw Score)</label>
+              <input id="ev-raw" type="number" required value="42" min="0" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg font-mono-num" />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1">คะแนนเต็ม (Max Score)</label>
+              <input id="ev-max" type="number" required value="50" min="1" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg font-mono-num" />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1">อาจารย์ผู้ประเมิน</label>
+              <input id="ev-evaluator" required value="นพ. เอกรัตน์ วัฒนสุรินทร์" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg" />
+            </div>
+            <div class="sm:col-span-2 lg:col-span-3">
+              <label class="block text-xs font-medium text-slate-600 mb-1">ข้อเสนอแนะเชิงสร้างสรรค์</label>
+              <input id="ev-feedback" placeholder="บันทึกจุดเด่นและสิ่งที่ควรพัฒนา" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg" />
+            </div>
+            <div class="sm:col-span-2 lg:col-span-3 flex justify-end">
+              <button type="submit" class="px-4 py-2.5 text-sm font-semibold text-white bg-[#091A32] hover:bg-[#132E54] rounded-lg cursor-pointer">
+                บันทึกผลประเมินลง Sheet
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <div class="clinical-card rounded-2xl p-5 sm:p-6 overflow-x-auto">
+          <h3 class="text-sm font-bold text-[#091A32] mb-3">ประวัติการประเมินจาก Google Sheet</h3>
+          <table class="w-full text-left border-collapse text-xs sm:text-sm min-w-[680px]">
+            <thead>
+              <tr class="border-b border-slate-200 text-slate-500">
+                <th class="py-2 pr-3">วันที่</th>
+                <th class="py-2 pr-3">แบบประเมิน / รายวิชา</th>
+                <th class="py-2 pr-3">นักศึกษาแพทย์</th>
+                <th class="py-2 pr-3">คะแนน</th>
+                <th class="py-2 pr-3">อาจารย์ผู้ประเมิน</th>
+              </tr>
+            </thead>
+            <tbody id="evals-tbody" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <!-- Toast -->
+    <div
+      id="toast"
+      class="hidden fixed bottom-5 right-5 z-50 bg-[#091A32] text-white text-sm font-medium px-4 py-3 rounded-xl shadow-xl border border-[#2DD4BF]/30"
+    ></div>
+
+    <script>
+      const WEB_APP_URL =
+        'https://script.google.com/macros/s/AKfycbxkVZe7xTSq3_p3FLBfNJ2otMUvBTn2GfApLbLtiqMKGxYc2r8KvFwdmD7BTmqp5xVbLw/exec';
+      const hasGasRuntime = typeof google !== 'undefined' && google.script && google.script.run;
+
+      function showToast(msg) {
+        const el = document.getElementById('toast');
+        el.textContent = msg;
+        el.classList.remove('hidden');
+        setTimeout(() => el.classList.add('hidden'), 3200);
+      }
+
+      function switchTab(tab) {
+        ['overview', 'logbook', 'shifts', 'evaluations'].forEach((id) => {
+          document.getElementById('panel-' + id).classList.toggle('hidden', id !== tab);
+          const btn = document.getElementById('tab-' + id);
+          if (id === tab) {
+            btn.className =
+              'tab-btn px-3.5 py-2 text-sm font-semibold rounded-lg bg-[#091A32] text-white whitespace-nowrap cursor-pointer';
+          } else {
+            btn.className =
+              'tab-btn px-3.5 py-2 text-sm font-medium rounded-lg text-slate-600 hover:bg-slate-100 whitespace-nowrap cursor-pointer';
+          }
+        });
+      }
+
+      function escapeHtml(val) {
+        return String(val ?? '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;');
+      }
+
+      function renderData(res) {
+        if (!res || !res.ok) {
+          showToast((res && res.error) || 'ไม่สามารถโหลดข้อมูลได้');
+          return;
+        }
+        const logbooks = res.logbooks || [];
+        const shifts = res.shifts || [];
+        const evals = res.evaluations || [];
+        const announcements = res.announcements || [];
+
+        document.getElementById('kpi-logbooks').textContent = logbooks.length;
+        document.getElementById('kpi-pending').textContent = logbooks.filter(
+          (l) => l.status === 'pending'
+        ).length;
+        document.getElementById('kpi-shifts').textContent = shifts.length;
+        document.getElementById('kpi-evals').textContent = evals.length;
+        document.getElementById('sync-time').textContent =
+          'ซิงค์ล่าสุดจาก Sheet: ' + (res.serverTime || 'เรียบร้อย');
+
+        const annEl = document.getElementById('announcements-list');
+        annEl.innerHTML = announcements.length
+          ? announcements
+              .map(
+                (a) =>
+                  '<div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200">' +
+                  '<div class="text-xs text-[#0D9488] font-semibold">' +
+                  escapeHtml(a.category) +
+                  ' · ' +
+                  escapeHtml(a.date) +
+                  '</div>' +
+                  '<div class="text-sm font-bold text-[#091A32] mt-0.5">' +
+                  escapeHtml(a.title) +
+                  '</div>' +
+                  '<div class="text-xs text-slate-600 mt-1">' +
+                  escapeHtml(a.summary) +
+                  '</div></div>'
+              )
+              .join('')
+          : '<div class="text-sm text-slate-500 py-4">ยังไม่มีประกาศใน Google Sheet (สามารถส่งข้อมูลจากแอปหลักเข้า Sheet ได้ทันที)</div>';
+
+        document.getElementById('logbook-tbody').innerHTML = logbooks.length
+          ? logbooks
+              .slice(0, 50)
+              .map((l) => {
+                const statusText =
+                  l.status === 'approved'
+                    ? '<span class="text-emerald-700 font-semibold">รับรองแล้ว</span>'
+                    : l.status === 'revision'
+                      ? '<span class="text-rose-700 font-semibold">ส่งแก้ไข</span>'
+                      : '<span class="text-amber-700 font-semibold">รอรับรอง</span>';
+                return (
+                  '<tr>' +
+                  '<td class="py-2.5 pr-3 font-mono-num text-slate-600">' +
+                  escapeHtml(l.date) +
+                  '</td>' +
+                  '<td class="py-2.5 pr-3"><div class="font-medium text-slate-900">' +
+                  escapeHtml(l.department) +
+                  '</div><div class="text-xs text-slate-500">' +
+                  escapeHtml(l.setting) +
+                  ' · ' +
+                  escapeHtml(l.role) +
+                  '</div></td>' +
+                  '<td class="py-2.5 pr-3"><div class="font-medium text-slate-900">' +
+                  escapeHtml(l.diagnosis) +
+                  '</div><div class="text-xs text-slate-500">' +
+                  escapeHtml(l.procedure) +
+                  '</div></td>' +
+                  '<td class="py-2.5 pr-3 text-slate-700">' +
+                  escapeHtml(l.preceptor) +
+                  '</td>' +
+                  '<td class="py-2.5 pr-3">' +
+                  statusText +
+                  '</td>' +
+                  '<td class="py-2.5 text-right">' +
+                  (l.status !== 'approved'
+                    ? '<button onclick="approveLogbook(\'' +
+                      escapeHtml(l.id) +
+                      '\')" class="px-2.5 py-1 text-xs font-semibold text-white bg-[#0D9488] rounded-md cursor-pointer">รับรอง</button>'
+                    : '—') +
+                  '</td></tr>'
+                );
+              })
+              .join('')
+          : '<tr><td colspan="6" class="py-6 text-center text-slate-500">ยังไม่มีรายการ E-Logbook ใน Google Sheet</td></tr>';
+
+        document.getElementById('shifts-tbody').innerHTML = shifts.length
+          ? shifts
+              .slice(0, 50)
+              .map(
+                (s) =>
+                  '<tr>' +
+                  '<td class="py-2.5 pr-3 font-mono-num">' +
+                  escapeHtml(s.date) +
+                  '</td>' +
+                  '<td class="py-2.5 pr-3"><div class="font-medium">' +
+                  escapeHtml(s.wardOrUnit) +
+                  '</div><div class="text-xs text-slate-500">' +
+                  escapeHtml(s.department) +
+                  '</div></td>' +
+                  '<td class="py-2.5 pr-3 font-mono-num">' +
+                  escapeHtml(s.timeRange) +
+                  '</td>' +
+                  '<td class="py-2.5 pr-3">' +
+                  escapeHtml(s.assignedStudent) +
+                  '</td>' +
+                  '<td class="py-2.5 pr-3 font-mono-num text-[#0D9488] font-semibold">' +
+                  escapeHtml(s.checkedInAt || 'ยังไม่ลงเวลา') +
+                  '</td>' +
+                  '<td class="py-2.5 text-right">' +
+                  (!s.checkedInAt
+                    ? '<button onclick="checkInShift(\'' +
+                      escapeHtml(s.id) +
+                      '\')" class="px-2.5 py-1 text-xs font-semibold text-white bg-[#091A32] rounded-md cursor-pointer">ลงเวลาเข้าเวร</button>'
+                    : 'ลงเวลาแล้ว') +
+                  '</td></tr>'
+              )
+              .join('')
+          : '<tr><td colspan="6" class="py-6 text-center text-slate-500">ยังไม่มีตารางเวรใน Google Sheet</td></tr>';
+
+        document.getElementById('evals-tbody').innerHTML = evals.length
+          ? evals
+              .slice(0, 50)
+              .map(
+                (ev) =>
+                  '<tr>' +
+                  '<td class="py-2.5 pr-3 font-mono-num">' +
+                  escapeHtml(ev.date) +
+                  '</td>' +
+                  '<td class="py-2.5 pr-3"><div class="font-medium">' +
+                  escapeHtml(ev.formTitle || ev.formType) +
+                  '</div><div class="text-xs font-mono-num text-slate-500">' +
+                  escapeHtml(ev.courseCode) +
+                  '</div></td>' +
+                  '<td class="py-2.5 pr-3">' +
+                  escapeHtml(ev.studentName) +
+                  '</td>' +
+                  '<td class="py-2.5 pr-3 font-mono-num font-semibold text-[#0D9488]">' +
+                  escapeHtml(ev.rawScore) +
+                  '/' +
+                  escapeHtml(ev.maxScore) +
+                  ' (' +
+                  escapeHtml(ev.percentage) +
+                  '%)</td>' +
+                  '<td class="py-2.5 pr-3">' +
+                  escapeHtml(ev.evaluatorName) +
+                  '</td></tr>'
+              )
+              .join('')
+          : '<tr><td colspan="5" class="py-6 text-center text-slate-500">ยังไม่มีผลประเมินใน Google Sheet</td></tr>';
+      }
+
+      function loadAll() {
+        if (hasGasRuntime) {
+          google.script.run.withSuccessHandler(renderData).getDashboardData();
+        } else {
+          fetch(WEB_APP_URL + '?action=getSummary')
+            .then((r) => r.json())
+            .then(renderData)
+            .catch((e) => showToast('เชื่อมต่อไม่ได้: ' + e.message));
+        }
+      }
+
+      function initSheets() {
+        if (hasGasRuntime) {
+          google.script.run
+            .withSuccessHandler((res) => {
+              showToast('เตรียมหัวตารางใน "' + res.spreadsheetName + '" เรียบร้อย');
+              loadAll();
+            })
+            .initializeSheetsFromWeb();
+        } else {
+          fetch(WEB_APP_URL + '?action=ping')
+            .then((r) => r.json())
+            .then((res) => showToast('เชื่อมต่อ "' + res.spreadsheetName + '" สำเร็จ'))
+            .catch((e) => showToast('ผิดพลาด: ' + e.message));
+        }
+      }
+
+      function submitLogbook(e) {
+        e.preventDefault();
+        const payload = {
+          department: document.getElementById('lb-dept').value,
+          setting: document.getElementById('lb-setting').value,
+          role: document.getElementById('lb-role').value,
+          diagnosis: document.getElementById('lb-diag').value.trim(),
+          icd10: document.getElementById('lb-icd10').value.trim(),
+          procedure: document.getElementById('lb-proc').value.trim(),
+          reflection: document.getElementById('lb-reflection').value.trim(),
+          preceptor: document.getElementById('lb-preceptor').value.trim(),
+        };
+        if (hasGasRuntime) {
+          google.script.run
+            .withSuccessHandler(() => {
+              showToast('บันทึก E-Logbook ลง Google Sheet เรียบร้อย');
+              e.target.reset();
+              loadAll();
+            })
+            .saveLogbookFromWeb(payload);
+        } else {
+          fetch(WEB_APP_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'appendLogbook', entry: payload }),
+          })
+            .then((r) => r.json())
+            .then(() => {
+              showToast('บันทึก E-Logbook ลง Google Sheet เรียบร้อย');
+              e.target.reset();
+              loadAll();
+            });
+        }
+      }
+
+      function approveLogbook(id) {
+        if (hasGasRuntime) {
+          google.script.run
+            .withSuccessHandler(() => {
+              showToast('รับรองรายการเรียบร้อยแล้ว');
+              loadAll();
+            })
+            .updateLogbookStatusFromWeb(id, 'approved', 'รับรองผ่าน Web App');
+        } else {
+          fetch(WEB_APP_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'updateLogbookStatus', id: id, status: 'approved' }),
+          }).then(() => loadAll());
+        }
+      }
+
+      function checkInShift(shiftId) {
+        if (hasGasRuntime) {
+          google.script.run
+            .withSuccessHandler((res) => {
+              showToast('ลงเวลาเข้าเวร ' + res.checkedInAt + ' เรียบร้อย');
+              loadAll();
+            })
+            .saveShiftCheckInFromWeb(shiftId);
+        } else {
+          fetch(WEB_APP_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'checkInShift', shiftId: shiftId }),
+          }).then(() => loadAll());
+        }
+      }
+
+      function submitEvaluation(e) {
+        e.preventDefault();
+        const typeEl = document.getElementById('ev-type');
+        const payload = {
+          formType: typeEl.value,
+          formTitle: typeEl.options[typeEl.selectedIndex].text,
+          courseCode: document.getElementById('ev-course').value.trim(),
+          studentName: document.getElementById('ev-student').value.trim(),
+          rawScore: Number(document.getElementById('ev-raw').value),
+          maxScore: Number(document.getElementById('ev-max').value),
+          evaluatorName: document.getElementById('ev-evaluator').value.trim(),
+          feedback: document.getElementById('ev-feedback').value.trim(),
+        };
+        if (hasGasRuntime) {
+          google.script.run
+            .withSuccessHandler(() => {
+              showToast('บันทึกแบบประเมินลง Google Sheet เรียบร้อย');
+              e.target.reset();
+              loadAll();
+            })
+            .saveEvaluationFromWeb(payload);
+        } else {
+          fetch(WEB_APP_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'appendEvaluation', evaluation: payload }),
+          }).then(() => {
+            showToast('บันทึกแบบประเมินลง Google Sheet เรียบร้อย');
+            e.target.reset();
+            loadAll();
+          });
+        }
+      }
+
+      loadAll();
+    </script>
+  </body>
+</html>
