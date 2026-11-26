@@ -88,31 +88,62 @@ export function GoogleSheetsSyncModal({
 
   if (!isOpen) return null;
 
+  const callGasJsonWithProxyFallback = async (
+    proxyUrl: string,
+    directUrl: string,
+    init?: RequestInit
+  ): Promise<{ok: boolean; body: Record<string, unknown>}> => {
+    try {
+      const res = await fetch(proxyUrl, init);
+      const contentType = res.headers.get('content-type') || '';
+      if (res.status !== 404 && contentType.includes('application/json')) {
+        const body = (await res.json()) as Record<string, unknown>;
+        return {ok: res.ok, body};
+      }
+    } catch {
+      // Fall through to direct Google Apps Script request
+    }
+
+    const directRes = await fetch(directUrl, {
+      ...init,
+      redirect: 'follow',
+      ...(init?.method === 'POST'
+        ? {headers: {'Content-Type': 'text/plain;charset=utf-8'}}
+        : {}),
+    });
+    const text = await directRes.text();
+    const parsed = JSON.parse(text.trim()) as Record<string, unknown>;
+    return {ok: directRes.ok && parsed.ok !== false, body: parsed};
+  };
+
   const handlePing = async () => {
     setBusyAction('ping');
     setErrorMessage(null);
     setStatusMessage(null);
+    const trimmedUrl = webAppUrl.trim();
+    const sep = trimmedUrl.includes('?') ? '&' : '?';
     try {
-      const res = await fetch(
-        `/api/sheets/ping?url=${encodeURIComponent(webAppUrl.trim())}`
+      const {ok, body} = await callGasJsonWithProxyFallback(
+        `/api/sheets/ping?url=${encodeURIComponent(trimmedUrl)}`,
+        `${trimmedUrl}${sep}action=ping`
       );
-      const body = (await res.json()) as {
+      const typed = body as {
         error?: string;
         spreadsheetName?: string;
-        sheets?: { name: string; rows: number }[];
+        sheets?: {name: string; rows: number}[];
         serverTime?: string;
       };
-      if (!res.ok) {
-        setErrorMessage(body.error || 'ไม่สามารถเชื่อมต่อ Google Apps Script ได้');
+      if (!ok) {
+        setErrorMessage(typed.error || 'ไม่สามารถเชื่อมต่อ Google Apps Script ได้');
         return;
       }
       setSheetSummary({
-        spreadsheetName: body.spreadsheetName,
-        sheets: body.sheets,
-        serverTime: body.serverTime,
+        spreadsheetName: typed.spreadsheetName,
+        sheets: typed.sheets,
+        serverTime: typed.serverTime,
       });
       setStatusMessage(
-        `เชื่อมต่อไฟล์ "${body.spreadsheetName ?? spreadsheetId}" สำเร็จแล้ว`
+        `เชื่อมต่อไฟล์ "${typed.spreadsheetName ?? spreadsheetId}" สำเร็จแล้ว`
       );
     } catch {
       setErrorMessage('เกิดข้อผิดพลาดระหว่างตรวจสอบการเชื่อมต่อ');
@@ -125,27 +156,54 @@ export function GoogleSheetsSyncModal({
     setBusyAction('push');
     setErrorMessage(null);
     setStatusMessage(null);
+    const trimmedUrl = webAppUrl.trim();
     try {
-      const res = await fetch('/api/sheets/push', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          webAppUrl: webAppUrl.trim(),
-          actor: actorName,
-          data: currentPayload,
-        }),
-      });
-      const body = (await res.json()) as {
+      let ok = false;
+      let body: Record<string, unknown> = {};
+      try {
+        const res = await fetch('/api/sheets/push', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            webAppUrl: trimmedUrl,
+            actor: actorName,
+            data: currentPayload,
+          }),
+        });
+        const contentType = res.headers.get('content-type') || '';
+        if (res.status !== 404 && contentType.includes('application/json')) {
+          ok = res.ok;
+          body = (await res.json()) as Record<string, unknown>;
+        } else {
+          throw new Error('use_direct');
+        }
+      } catch {
+        const directRes = await fetch(trimmedUrl, {
+          method: 'POST',
+          redirect: 'follow',
+          headers: {'Content-Type': 'text/plain;charset=utf-8'},
+          body: JSON.stringify({
+            action: 'syncAll',
+            actor: actorName,
+            data: currentPayload,
+          }),
+        });
+        const text = await directRes.text();
+        body = JSON.parse(text.trim()) as Record<string, unknown>;
+        ok = directRes.ok && body.ok !== false;
+      }
+
+      const typed = body as {
         error?: string;
         syncedAt?: string;
         counts?: Record<string, number>;
       };
-      if (!res.ok) {
-        setErrorMessage(body.error || 'ไม่สามารถส่งข้อมูลขึ้น Google Sheets ได้');
+      if (!ok) {
+        setErrorMessage(typed.error || 'ไม่สามารถส่งข้อมูลขึ้น Google Sheets ได้');
         return;
       }
-      const countText = body.counts
-        ? `Logbook ${body.counts.logbookEntries ?? 0} · เวร ${body.counts.shifts ?? 0} · แบบประเมิน ${body.counts.facultySubmissions ?? 0} · คะแนน ${body.counts.studentScores ?? 0}`
+      const countText = typed.counts
+        ? `Logbook ${typed.counts.logbookEntries ?? 0} · เวร ${typed.counts.shifts ?? 0} · แบบประเมิน ${typed.counts.facultySubmissions ?? 0} · คะแนน ${typed.counts.studentScores ?? 0}`
         : '';
       const msg = `ส่งข้อมูลขึ้น Google Sheet สำเร็จ (${countText})`;
       setStatusMessage(msg);
@@ -161,28 +219,31 @@ export function GoogleSheetsSyncModal({
     setBusyAction('pull');
     setErrorMessage(null);
     setStatusMessage(null);
+    const trimmedUrl = webAppUrl.trim();
+    const sep = trimmedUrl.includes('?') ? '&' : '?';
     try {
-      const res = await fetch(
-        `/api/sheets/pull?url=${encodeURIComponent(webAppUrl.trim())}`
+      const {ok, body} = await callGasJsonWithProxyFallback(
+        `/api/sheets/pull?url=${encodeURIComponent(trimmedUrl)}`,
+        `${trimmedUrl}${sep}action=getAll`
       );
-      const body = (await res.json()) as {
+      const typed = body as {
         error?: string;
         spreadsheetName?: string;
         updatedAt?: string;
         data?: Partial<PortalSyncPayload>;
       };
-      if (!res.ok) {
-        setErrorMessage(body.error || 'ไม่สามารถดึงข้อมูลจาก Google Sheets ได้');
+      if (!ok) {
+        setErrorMessage(typed.error || 'ไม่สามารถดึงข้อมูลจาก Google Sheets ได้');
         return;
       }
-      if (!body.data || Object.keys(body.data).length === 0) {
+      if (!typed.data || Object.keys(typed.data).length === 0) {
         setErrorMessage(
           'ยังไม่มีข้อมูลใน Google Sheet กรุณากด "ส่งข้อมูลขึ้น Google Sheet" ก่อนเพื่อสร้างฐานข้อมูลเริ่มต้น'
         );
         return;
       }
-      onApplyPulledData(body.data);
-      const msg = `นำเข้าข้อมูลล่าสุดจาก "${body.spreadsheetName ?? spreadsheetId}" เข้าสู่ระบบแล้ว`;
+      onApplyPulledData(typed.data);
+      const msg = `นำเข้าข้อมูลล่าสุดจาก "${typed.spreadsheetName ?? spreadsheetId}" เข้าสู่ระบบแล้ว`;
       setStatusMessage(msg);
       onNotify(msg);
     } catch {
