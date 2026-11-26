@@ -2,6 +2,7 @@ import { useState } from 'react';
 import {
   Camera,
   Check,
+  Database,
   FileSpreadsheet,
   KeyRound,
   Lock,
@@ -32,6 +33,7 @@ interface WorkspaceBarProps {
   onOpenStudentDirectory: () => void;
   onOpenQuickSearch: () => void;
   onOpenSheetsSync: () => void;
+  onOpenAdminBackOffice?: () => void;
 }
 
 export function WorkspaceBar({
@@ -47,12 +49,14 @@ export function WorkspaceBar({
   onOpenStudentDirectory,
   onOpenQuickSearch,
   onOpenSheetsSync,
+  onOpenAdminBackOffice,
 }: WorkspaceBarProps) {
   const [showMatrix, setShowMatrix] = useState(false);
   const profile = ROLE_PERMISSION_PROFILES[role];
   const displayName = authUser ? authUser.displayName : profile.displayName;
   const affiliation = authUser ? authUser.affiliation : profile.affiliation;
   const isBackOfficeManager = hasRoleAccess(role, isAuthenticated, ADMIN_OFFICER_ROLES);
+  const isStrictAdmin = isAuthenticated && role === 'admin';
   const canSyncSheets = hasRoleAccess(role, isAuthenticated, ADMIN_OFFICER_ROLES);
 
   return (
@@ -180,6 +184,17 @@ export function WorkspaceBar({
                   >
                     <UserCog className="w-3.5 h-3.5" aria-hidden="true" />
                     <span>จัดการสมาชิก (CRUD)</span>
+                  </button>
+                )}
+
+                {isStrictAdmin && onOpenAdminBackOffice && (
+                  <button
+                    type="button"
+                    onClick={onOpenAdminBackOffice}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-[#091A32] hover:bg-[#13294B] border border-[#091A32] rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+                  >
+                    <Database className="w-3.5 h-3.5 text-[#2DD4BF]" aria-hidden="true" />
+                    <span>ระบบหลังบ้าน (Admin)</span>
                   </button>
                 )}
                 <button

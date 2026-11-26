@@ -4,10 +4,13 @@ import {
   Announcement,
   AuthUserProfile,
   BedsideCheckInRecord,
+  ClinicalDepartment,
   ClinicalReferenceMaterial,
   ClinicalSkillMasteryItem,
   ConferenceEvent,
+  CourseGrade,
   CourseGradingConfig,
+  CpgProtocol,
   DutyShift,
   EpaMilestone,
   FacultyFormSubmission,
@@ -17,6 +20,7 @@ import {
   LogbookEntry,
   LogbookStatus,
   OsceEvaluationRecord,
+  OsceExam,
   PeerReviewComment,
   PeerReviewEntry,
   PeerReviewFeedbackInput,
@@ -26,6 +30,7 @@ import {
   ReferenceCheckoutRecord,
   ResearchProject,
   RoomBooking,
+  RoomResource,
   SbarHandoffRecord,
   StudentCourseScore,
   StudentPhotoMap,
@@ -95,6 +100,7 @@ import {
   WardQrPayload,
 } from './components/WardQrScannerModal';
 import { FacultyQrGeneratorModal } from './components/FacultyQrGeneratorModal';
+import { AdminBackOfficeModal } from './components/AdminBackOfficeModal';
 import { serializeFacultyStationQr } from './utils/qrPayloads';
 import { logoutAccount } from './utils/authClient';
 import { Footer } from './components/Footer';
@@ -103,6 +109,7 @@ import { OfflineBanner } from './components/OfflineBanner';
 import { computeActiveStudentBadges } from './utils/clinicalBadges';
 
 const STAFF_QR_ROLES: readonly UserRole[] = ['faculty', 'course_officer', 'admin'];
+const ADMIN_ONLY_ROLES: readonly UserRole[] = ['admin'];
 
 const INITIAL_FACULTY_QR_STATIONS: FacultyGeneratedQrStation[] = [
   {
@@ -208,9 +215,31 @@ export default function App() {
   const [quickSearchOpen, setQuickSearchOpen] = useState(false);
   const [sheetsSyncModalOpen, setSheetsSyncModalOpen] = useState(false);
   const [qrGeneratorOpen, setQrGeneratorOpen] = useState(false);
+  const [adminBackOfficeOpen, setAdminBackOfficeOpen] = useState(false);
   const [qrGeneratorKind, setQrGeneratorKind] = useState<'ward' | 'procedure'>('ward');
   const [externalScanPayload, setExternalScanPayload] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const [departments, setDepartments] = useState<ClinicalDepartment[]>(() => {
+    const saved = loadSavedState<ClinicalDepartment[]>('departments', CLINICAL_DEPARTMENTS);
+    return Array.isArray(saved) && saved.length > 0 ? saved : CLINICAL_DEPARTMENTS;
+  });
+  const [exams, setExams] = useState<OsceExam[]>(() => {
+    const saved = loadSavedState<OsceExam[]>('exams', INITIAL_OSCE_EXAMS);
+    return Array.isArray(saved) && saved.length > 0 ? saved : INITIAL_OSCE_EXAMS;
+  });
+  const [courseGrades, setCourseGrades] = useState<CourseGrade[]>(() => {
+    const saved = loadSavedState<CourseGrade[]>('courseGrades', INITIAL_COURSE_GRADES);
+    return Array.isArray(saved) && saved.length > 0 ? saved : INITIAL_COURSE_GRADES;
+  });
+  const [rooms, setRooms] = useState<RoomResource[]>(() => {
+    const saved = loadSavedState<RoomResource[]>('rooms', CLINICAL_ROOMS);
+    return Array.isArray(saved) && saved.length > 0 ? saved : CLINICAL_ROOMS;
+  });
+  const [cpgProtocols, setCpgProtocols] = useState<CpgProtocol[]>(() => {
+    const saved = loadSavedState<CpgProtocol[]>('cpgProtocols', SURIN_CPG_PROTOCOLS);
+    return Array.isArray(saved) && saved.length > 0 ? saved : SURIN_CPG_PROTOCOLS;
+  });
 
   const [customQrStations, setCustomQrStations] = useState<FacultyGeneratedQrStation[]>(() => {
     const saved = loadSavedState<FacultyGeneratedQrStation[]>(
@@ -448,6 +477,11 @@ export default function App() {
           approvedPeerReviewDomains,
           peerReviewEntries,
           customQrStations,
+          departments,
+          exams,
+          courseGrades,
+          rooms,
+          cpgProtocols,
         })
       );
     } catch {
@@ -478,6 +512,11 @@ export default function App() {
     approvedPeerReviewDomains,
     peerReviewEntries,
     customQrStations,
+    departments,
+    exams,
+    courseGrades,
+    rooms,
+    cpgProtocols,
   ]);
 
   const showToast = (msg: string) => {
@@ -557,6 +596,21 @@ export default function App() {
     };
   };
 
+  const runAdminOnly = <Args extends unknown[]>(
+    actionLabel: string,
+    handler: (...args: Args) => void
+  ) => {
+    return (...args: Args) => {
+      if (!authUser || !hasRoleAccess(authUser.role, true, ADMIN_ONLY_ROLES)) {
+        showToast(
+          `จำกัดสิทธิ์การเข้าถึง: ระบบหลังบ้านแก้ไขได้เฉพาะบัญชีแอดมิน (ระดับ 3B) จึงจะ${actionLabel}ได้`
+        );
+        return;
+      }
+      handler(...args);
+    };
+  };
+
   const handleOpenAuthModal = (tab: 'login' | 'manage' | 'password') => {
     if (!authUser) {
       setAuthModalTab('login');
@@ -588,6 +642,7 @@ export default function App() {
     setQuickSearchOpen(false);
     setSheetsSyncModalOpen(false);
     setQrGeneratorOpen(false);
+    setAdminBackOfficeOpen(false);
     setExternalScanPayload(null);
     setActiveTab('overview');
     showToast('ออกจากระบบเรียบร้อยแล้ว');
@@ -733,7 +788,7 @@ export default function App() {
     const activeStudent = COHORT_STUDENTS.find(
       (s) => s.studentId === activeStudentId
     );
-    const deptMeta = CLINICAL_DEPARTMENTS.find(
+    const deptMeta = departments.find(
       (d) => d.nameTh === payload.department
     );
     const thaiMonths = [
@@ -1514,7 +1569,7 @@ export default function App() {
     };
     setRoomBookings((prev) => [newBooking, ...prev]);
     const roomName =
-      CLINICAL_ROOMS.find((r) => r.id === booking.roomId)?.name ?? 'ห้องประชุม';
+      rooms.find((r) => r.id === booking.roomId)?.name ?? 'ห้องประชุม';
     showToast(`จอง ${roomName} (${booking.timeSlot} น.) เรียบร้อยแล้ว`);
     return true;
   };
@@ -1815,6 +1870,167 @@ export default function App() {
     }
   };
 
+  const handleExportFullBackup = () => {
+    if (!authUser || !hasRoleAccess(authUser.role, true, ADMIN_ONLY_ROLES)) {
+      showToast('จำกัดสิทธิ์: เฉพาะบัญชีแอดมิน (ระดับ 3B) เท่านั้นที่ส่งออกข้อมูลระบบได้');
+      return;
+    }
+    const backup = {
+      app: 'surin-mec-portal',
+      version: '1.0',
+      exportedAt: new Date().toISOString(),
+      exportedBy: authUser.username,
+      data: {
+        departments,
+        gradingConfigs,
+        exams,
+        evaluations,
+        studentScores,
+        epas,
+        courseGrades,
+        conferences,
+        announcements,
+        shifts,
+        leaveRequests,
+        roomBookings,
+        rooms,
+        quotas,
+        clinicalSkills,
+        logbookEntries,
+        cpgProtocols,
+        referenceMaterials,
+        referenceCheckouts,
+        researchProjects,
+        welfareRequests,
+        preceptorFeedbacks,
+        bedsideCheckIns,
+        customQrStations,
+        facultySubmissions,
+        approvedPeerReviewDomains,
+        peerReviewEntries,
+        learningStreak,
+        studentPhotos,
+      },
+    };
+    const blob = new Blob([JSON.stringify(backup, null, 2)], {
+      type: 'application/json;charset=utf-8',
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `surin-mec-backup-${getBangkokDateKey()}.json`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    showToast('ส่งออกไฟล์สำรองข้อมูลระบบทั้งหมด (JSON) เรียบร้อยแล้ว');
+  };
+
+  const handleImportFullBackup = (rawJson: string) => {
+    if (!authUser || !hasRoleAccess(authUser.role, true, ADMIN_ONLY_ROLES)) {
+      showToast('จำกัดสิทธิ์: เฉพาะบัญชีแอดมิน (ระดับ 3B) เท่านั้นที่กู้คืนข้อมูลระบบได้');
+      return;
+    }
+    try {
+      const parsed = JSON.parse(rawJson) as Record<string, unknown>;
+      const data =
+        parsed && typeof parsed.data === 'object' && parsed.data !== null
+          ? (parsed.data as Record<string, unknown>)
+          : parsed;
+
+      let restoredSections = 0;
+      const restoreArray = <T,>(key: string, setter: (val: T[]) => void) => {
+        const val = data[key];
+        if (Array.isArray(val)) {
+          setter(val as T[]);
+          restoredSections += 1;
+        }
+      };
+
+      restoreArray('departments', setDepartments);
+      restoreArray('gradingConfigs', setGradingConfigs);
+      restoreArray('exams', setExams);
+      restoreArray('evaluations', setEvaluations);
+      restoreArray('studentScores', setStudentScores);
+      restoreArray('epas', setEpas);
+      restoreArray('courseGrades', setCourseGrades);
+      restoreArray('conferences', setConferences);
+      restoreArray('announcements', setAnnouncements);
+      restoreArray('shifts', setShifts);
+      restoreArray('leaveRequests', setLeaveRequests);
+      restoreArray('roomBookings', setRoomBookings);
+      restoreArray('rooms', setRooms);
+      restoreArray('quotas', setQuotas);
+      restoreArray('clinicalSkills', setClinicalSkills);
+      restoreArray('logbookEntries', setLogbookEntries);
+      restoreArray('cpgProtocols', setCpgProtocols);
+      restoreArray('referenceMaterials', setReferenceMaterials);
+      restoreArray('referenceCheckouts', setReferenceCheckouts);
+      restoreArray('researchProjects', setResearchProjects);
+      restoreArray('welfareRequests', setWelfareRequests);
+      restoreArray('preceptorFeedbacks', setPreceptorFeedbacks);
+      restoreArray('bedsideCheckIns', setBedsideCheckIns);
+      restoreArray('customQrStations', setCustomQrStations);
+      restoreArray('facultySubmissions', setFacultySubmissions);
+      restoreArray('approvedPeerReviewDomains', setApprovedPeerReviewDomains);
+      restoreArray('peerReviewEntries', setPeerReviewEntries);
+
+      if (data.learningStreak && typeof data.learningStreak === 'object') {
+        setLearningStreak(data.learningStreak as LearningStreakState);
+        restoredSections += 1;
+      }
+      if (data.studentPhotos && typeof data.studentPhotos === 'object') {
+        setStudentPhotos(data.studentPhotos as StudentPhotoMap);
+        restoredSections += 1;
+      }
+
+      if (restoredSections === 0) {
+        showToast('ไม่พบโครงสร้างข้อมูลสำรองที่ถูกต้องในไฟล์ JSON นี้');
+        return;
+      }
+      showToast(`กู้คืนข้อมูลระบบสำเร็จ (${restoredSections} หมวดข้อมูล)`);
+    } catch {
+      showToast('ไม่สามารถอ่านไฟล์ JSON ได้ กรุณาตรวจสอบรูปแบบไฟล์สำรอง');
+    }
+  };
+
+  const handleResetFactoryDefaults = () => {
+    if (!authUser || !hasRoleAccess(authUser.role, true, ADMIN_ONLY_ROLES)) {
+      showToast('จำกัดสิทธิ์: เฉพาะบัญชีแอดมิน (ระดับ 3B) เท่านั้นที่รีเซ็ตข้อมูลระบบได้');
+      return;
+    }
+    setDepartments(CLINICAL_DEPARTMENTS);
+    setGradingConfigs(INITIAL_COURSE_GRADING_CONFIGS);
+    setExams(INITIAL_OSCE_EXAMS);
+    setEvaluations(INITIAL_OSCE_EVALUATIONS);
+    setStudentScores(INITIAL_STUDENT_SCORES);
+    setEpas(INITIAL_EPA_MILESTONES);
+    setCourseGrades(INITIAL_COURSE_GRADES);
+    setConferences(INITIAL_CONFERENCES);
+    setAnnouncements(INITIAL_ANNOUNCEMENTS);
+    setShifts(INITIAL_DUTY_SHIFTS);
+    setLeaveRequests(INITIAL_LEAVE_REQUESTS);
+    setRoomBookings(INITIAL_ROOM_BOOKINGS);
+    setRooms(CLINICAL_ROOMS);
+    setQuotas(INITIAL_PROCEDURE_QUOTAS);
+    setClinicalSkills(INITIAL_CLINICAL_SKILLS_MASTERY);
+    setLogbookEntries(INITIAL_LOGBOOK_ENTRIES);
+    setCpgProtocols(SURIN_CPG_PROTOCOLS);
+    setReferenceMaterials(INITIAL_REFERENCE_MATERIALS);
+    setReferenceCheckouts(INITIAL_REFERENCE_CHECKOUTS);
+    setResearchProjects(INITIAL_RESEARCH_PROJECTS);
+    setWelfareRequests(INITIAL_WELFARE_REQUESTS);
+    setPreceptorFeedbacks(INITIAL_PRECEPTOR_FEEDBACKS);
+    setBedsideCheckIns(INITIAL_BEDSIDE_CHECKINS);
+    setCustomQrStations(INITIAL_FACULTY_QR_STATIONS);
+    setFacultySubmissions(INITIAL_FACULTY_SUBMISSIONS);
+    setApprovedPeerReviewDomains(INITIAL_APPROVED_PEER_REVIEW_DOMAINS);
+    setPeerReviewEntries(INITIAL_PEER_REVIEW_ENTRIES);
+    setLearningStreak(buildInitialLearningStreak());
+    setStudentPhotos(INITIAL_STUDENT_PHOTOS);
+    showToast('รีเซ็ตข้อมูลพอร์ทัลทั้งหมดกลับเป็นค่าเริ่มต้นเรียบร้อยแล้ว');
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-clinical-canvas text-[#0F172A]">
       <Header
@@ -1850,6 +2066,13 @@ export default function App() {
             showToast('จำกัดสิทธิ์: เฉพาะแอดมินหรือนักวิชาการประจำรายวิชาเท่านั้นที่ซิงค์ Google Sheets ได้');
           }
         }}
+        onOpenAdminBackOffice={() => {
+          if (authUser && hasRoleAccess(authUser.role, true, ADMIN_ONLY_ROLES)) {
+            setAdminBackOfficeOpen(true);
+          } else {
+            showToast('จำกัดสิทธิ์: ระบบหลังบ้านเข้าถึงได้เฉพาะบัญชีแอดมิน (ระดับ 3B) เท่านั้น');
+          }
+        }}
       />
 
       <main className="flex-1 max-w-[1280px] w-full mx-auto px-4 sm:px-6 py-8 sm:py-10">
@@ -1871,9 +2094,9 @@ export default function App() {
                 onToggleConferenceCheckIn={handleToggleConferenceCheckIn}
                 announcements={announcements}
                 onAddAnnouncement={handleAddAnnouncement}
-                exams={INITIAL_OSCE_EXAMS}
+                exams={exams}
                 evaluations={scopedEvaluations}
-                courseGrades={INITIAL_COURSE_GRADES}
+                courseGrades={courseGrades}
                 studentScores={scopedStudentScores}
                 gradingConfigs={gradingConfigs}
                 bedsideCheckIns={scopedBedsideCheckIns}
@@ -1903,7 +2126,7 @@ export default function App() {
                         : activeStudentName)
                 }
                 studentPhotos={studentPhotos}
-                departments={CLINICAL_DEPARTMENTS}
+                departments={departments}
                 shifts={shifts}
                 onCheckInShift={handleCheckInShift}
                 onQrCheckIn={handleQrCheckIn}
@@ -1974,10 +2197,10 @@ export default function App() {
                 studentPhotos={studentPhotos}
                 epas={epas}
                 onUpdateEpaLevel={handleUpdateEpaLevel}
-                exams={INITIAL_OSCE_EXAMS}
+                exams={exams}
                 evaluations={scopedEvaluations}
                 onAddEvaluation={handleAddEvaluation}
-                grades={INITIAL_COURSE_GRADES}
+                grades={courseGrades}
                 gradingConfigs={gradingConfigs}
                 onUpdateGradingConfig={runWithRbac(
                   ADMIN_OFFICER_ROLES,
@@ -2002,7 +2225,7 @@ export default function App() {
               <LibraryResearchSection
                 role={activeRole}
                 currentUserName={currentActorName}
-                cpgProtocols={SURIN_CPG_PROTOCOLS}
+                cpgProtocols={cpgProtocols}
                 researchProjects={researchProjects}
                 onAddResearch={handleAddResearch}
                 onUpdateResearchStatus={runWithRbac(
@@ -2012,7 +2235,7 @@ export default function App() {
                 )}
                 welfareRequests={welfareRequests}
                 onAddWelfareRequest={handleAddWelfareRequest}
-                rooms={CLINICAL_ROOMS}
+                rooms={rooms}
                 timeSlots={ROOM_TIME_SLOTS}
                 roomBookings={roomBookings}
                 onBookRoom={handleBookRoom}
@@ -2074,9 +2297,9 @@ export default function App() {
           onClose={() => setQuickSearchOpen(false)}
           role={activeRole}
           studentPhotos={studentPhotos}
-          departments={CLINICAL_DEPARTMENTS}
-          cpgProtocols={SURIN_CPG_PROTOCOLS}
-          exams={INITIAL_OSCE_EXAMS}
+          departments={departments}
+          cpgProtocols={cpgProtocols}
+          exams={exams}
           onNavigateTab={setActiveTab}
           onOpenStudentDirectory={() => {
             if (activeRole !== 'student') setDirectoryModalOpen(true);
@@ -2127,7 +2350,7 @@ export default function App() {
           role={activeRole}
           currentUserName={currentActorName}
           initialKind={qrGeneratorKind}
-          departments={CLINICAL_DEPARTMENTS}
+          departments={departments}
           quotas={quotas}
           clinicalSkills={clinicalSkills}
           customQrStations={customQrStations}
@@ -2139,6 +2362,81 @@ export default function App() {
             setActiveTab('curriculum');
             setExternalScanPayload(serializeFacultyStationQr(station));
           }}
+        />
+      </RoleAccessGuard>
+
+      <RoleAccessGuard
+        role={activeRole}
+        isAuthenticated={isAuthenticated}
+        allowedRoles={ADMIN_ONLY_ROLES}
+      >
+        <AdminBackOfficeModal
+          isOpen={adminBackOfficeOpen}
+          onClose={() => setAdminBackOfficeOpen(false)}
+          role={activeRole}
+          currentUserName={currentActorName}
+          departments={departments}
+          onSaveDepartments={runAdminOnly('แก้ไขข้อมูลรายวิชา/กลุ่มงาน', setDepartments)}
+          gradingConfigs={gradingConfigs}
+          onSaveGradingConfigs={runAdminOnly('แก้ไขโครงสร้างแบบประเมินและเกณฑ์ตัดเกรด', setGradingConfigs)}
+          exams={exams}
+          onSaveExams={runAdminOnly('แก้ไขตารางสอบ OSCE', setExams)}
+          evaluations={evaluations}
+          onSaveEvaluations={runAdminOnly('แก้ไขผลประเมิน OSCE/Mini-CEX', setEvaluations)}
+          studentScores={studentScores}
+          onSaveStudentScores={runAdminOnly('แก้ไขคะแนนรายบุคคลนักศึกษา', setStudentScores)}
+          epas={epas}
+          onSaveEpas={runAdminOnly('แก้ไขข้อมูลสมรรถนะ EPA', setEpas)}
+          courseGrades={courseGrades}
+          onSaveCourseGrades={runAdminOnly('แก้ไขผลเกรดรายวิชา', setCourseGrades)}
+          conferences={conferences}
+          onSaveConferences={runAdminOnly('แก้ไขปฏิทินประชุมวิชาการ', setConferences)}
+          announcements={announcements}
+          onSaveAnnouncements={runAdminOnly('แก้ไขประกาศศูนย์แพทยฯ', setAnnouncements)}
+          shifts={shifts}
+          onSaveShifts={runAdminOnly('แก้ไขตารางเวรและการจองเวร', setShifts)}
+          leaveRequests={leaveRequests}
+          onSaveLeaveRequests={runAdminOnly('แก้ไขใบลาปฏิบัติงาน', setLeaveRequests)}
+          roomBookings={roomBookings}
+          onSaveRoomBookings={runAdminOnly('แก้ไขรายการจองห้องประชุม', setRoomBookings)}
+          rooms={rooms}
+          onSaveRooms={runAdminOnly('แก้ไขข้อมูลห้องเรียนและห้องประชุม', setRooms)}
+          quotas={quotas}
+          onSaveQuotas={runAdminOnly('แก้ไขเกณฑ์หัตถการบังคับ', setQuotas)}
+          clinicalSkills={clinicalSkills}
+          onSaveClinicalSkills={runAdminOnly('แก้ไขรายการทักษะคลินิก', setClinicalSkills)}
+          logbookEntries={logbookEntries}
+          onSaveLogbookEntries={runAdminOnly('แก้ไขข้อมูล E-Logbook', setLogbookEntries)}
+          cpgProtocols={cpgProtocols}
+          onSaveCpgProtocols={runAdminOnly('แก้ไขแนวทางเวชปฏิบัติ CPG', setCpgProtocols)}
+          referenceMaterials={referenceMaterials}
+          onSaveReferenceMaterials={runAdminOnly('แก้ไขรายการสื่อห้องสมุด', setReferenceMaterials)}
+          researchProjects={researchProjects}
+          onSaveResearchProjects={runAdminOnly('แก้ไขโครงการวิจัย IRB', setResearchProjects)}
+          welfareRequests={welfareRequests}
+          onSaveWelfareRequests={runAdminOnly('แก้ไขคำร้องสวัสดิการ', setWelfareRequests)}
+          preceptorFeedbacks={preceptorFeedbacks}
+          onSavePreceptorFeedbacks={runAdminOnly('แก้ไขผลประเมินอาจารย์', setPreceptorFeedbacks)}
+          bedsideCheckIns={bedsideCheckIns}
+          onSaveBedsideCheckIns={runAdminOnly('แก้ไขบันทึก Bedside Check-In', setBedsideCheckIns)}
+          customQrStations={customQrStations}
+          onSaveCustomQrStations={runAdminOnly('แก้ไขสถานี QR Code', setCustomQrStations)}
+          onOpenAuthManage={() => {
+            setAdminBackOfficeOpen(false);
+            handleOpenAuthModal('manage');
+          }}
+          onOpenQrGenerator={() => {
+            setAdminBackOfficeOpen(false);
+            handleOpenFacultyQrGenerator('ward');
+          }}
+          onOpenSheetsSync={() => {
+            setAdminBackOfficeOpen(false);
+            setSheetsSyncModalOpen(true);
+          }}
+          onExportFullBackup={handleExportFullBackup}
+          onImportFullBackup={handleImportFullBackup}
+          onResetFactoryDefaults={handleResetFactoryDefaults}
+          onNotify={showToast}
         />
       </RoleAccessGuard>
 
