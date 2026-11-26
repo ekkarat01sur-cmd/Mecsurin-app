@@ -109,6 +109,16 @@ export function ClinicalKnowledgeCheckPanel({
         }
       }
 
+      if (
+        typeof window !== 'undefined' &&
+        window.location.hostname.endsWith('.github.io')
+      ) {
+        setErrorMsg(
+          'แบบทดสอบความรู้ทางคลินิกประจำวัน (Gemini Search) ต้องใช้งานผ่านเซิร์ฟเวอร์ Backend ส่วนสถิติ Streak และข้อมูลคลินิกอื่นๆ ใช้งานบน GitHub Pages ได้ตามปกติ'
+        );
+        return;
+      }
+
       setLoading(true);
       setErrorMsg(null);
 
@@ -122,6 +132,14 @@ export function ClinicalKnowledgeCheckPanel({
             forceRefresh,
           }),
         });
+
+        const contentType = res.headers.get('content-type') || '';
+        if (!contentType.includes('application/json')) {
+          setErrorMsg(
+            'ไม่พบเซิร์ฟเวอร์ API สำหรับสร้างแบบทดสอบคลินิกบนโฮสต์แบบ Static'
+          );
+          return;
+        }
 
         const data = (await res.json()) as Partial<ClinicalQuizResponse> & {
           error?: string;

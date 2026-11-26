@@ -83,6 +83,16 @@ export function DailyMedicalDigestPanel({
         }
       }
 
+      if (
+        typeof window !== 'undefined' &&
+        window.location.hostname.endsWith('.github.io')
+      ) {
+        setErrorMsg(
+          'ฟีเจอร์สรุปแนวทางเวชปฏิบัติอัตโนมัติต้องใช้งานผ่านเซิร์ฟเวอร์ Backend (Node.js + Gemini API) สำหรับ GitHub Pages สามารถใช้งานข้อมูลคลินิก ตารางเวร E-Logbook และการซิงค์ Google Sheet ได้ตามปกติ'
+        );
+        return;
+      }
+
       setLoading(true);
       setErrorMsg(null);
 
@@ -96,6 +106,14 @@ export function DailyMedicalDigestPanel({
             forceRefresh,
           }),
         });
+
+        const contentType = res.headers.get('content-type') || '';
+        if (!contentType.includes('application/json')) {
+          setErrorMsg(
+            'ไม่พบเซิร์ฟเวอร์ API สำหรับสรุปข้อมูลทางการแพทย์บนโฮสต์แบบ Static'
+          );
+          return;
+        }
 
         const data = (await res.json()) as Partial<MedicalDigestResponse> & {
           error?: string;
