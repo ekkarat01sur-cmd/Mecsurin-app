@@ -96,6 +96,7 @@ import {
 } from './components/WardQrScannerModal';
 import { FacultyQrGeneratorModal } from './components/FacultyQrGeneratorModal';
 import { serializeFacultyStationQr } from './utils/qrPayloads';
+import { logoutAccount } from './utils/authClient';
 import { Footer } from './components/Footer';
 import { MobileBottomNav } from './components/MobileBottomNav';
 import { OfflineBanner } from './components/OfflineBanner';
@@ -579,16 +580,7 @@ export default function App() {
   };
 
   const handleLogout = async () => {
-    if (authToken) {
-      try {
-        await fetch('/api/auth/logout', {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${authToken}` },
-        });
-      } catch {
-        // Ignore transient network errors on logout
-      }
-    }
+    await logoutAccount(authToken);
     setAuthToken(null);
     setAuthUser(null);
     setLogbookModalOpen(false);

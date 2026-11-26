@@ -9,14 +9,12 @@ import {
   UserCheck,
 } from 'lucide-react';
 import { AuthUserProfile, UserRole } from '../types/medicalSchool';
-
-interface BootstrapDirectoryEntry {
-  username: string;
-  role: UserRole;
-  displayName: string;
-  affiliation: string;
-  hasPasswordSet: boolean;
-}
+import {
+  BootstrapDirectoryEntry,
+  getBootstrapStatus,
+  loginAccount,
+  setupAdminAccount,
+} from '../utils/authClient';
 
 interface PortalAuthGateProps {
   onAuthenticated: (token: string, user: AuthUserProfile) => void;
@@ -65,7 +63,7 @@ export function PortalAuthGate({ onAuthenticated }: PortalAuthGateProps) {
   const [adminConfigured, setAdminConfigured] = useState(true);
   const [requiresBootstrapPasscode, setRequiresBootstrapPasscode] = useState(false);
   const [directory, setDirectory] = useState<BootstrapDirectoryEntry[]>([]);
-  const [serverUnavailable, setServerUnavailable] = useState(false);
+  const [staticHostMode, setStaticHostMode] = useState(false);
   const [loadingStatus, setLoadingStatus] = useState(true);
 
   const [username, setUsername] = useState('');
@@ -85,24 +83,14 @@ export function PortalAuthGate({ onAuthenticated }: PortalAuthGateProps) {
     const loadStatus = async () => {
       setLoadingStatus(true);
       try {
-        const res = await fetch('/api/auth/bootstrap-status');
-        const contentType = res.headers.get('content-type') ?? '';
-        if (!res.ok || !contentType.includes('application/json')) {
-          if (active) setServerUnavailable(true);
-          return;
-        }
-        const data = (await res.json()) as {
-          adminConfigured: boolean;
-          requiresBootstrapPasscode: boolean;
-          accounts: BootstrapDirectoryEntry[];
-        };
+        const data = await getBootstrapStatus();
         if (!active) return;
-        setServerUnavailable(false);
+        setStaticHostMode(data.mode === 'static');
         setAdminConfigured(data.adminConfigured);
         setRequiresBootstrapPasscode(data.requiresBootstrapPasscode);
         setDirectory(data.accounts);
       } catch {
-        if (active) setServerUnavailable(true);
+        if (active) setStaticHostMode(true);
       } finally {
         if (active) setLoadingStatus(false);
       }
@@ -118,25 +106,11 @@ export function PortalAuthGate({ onAuthenticated }: PortalAuthGateProps) {
     setSetupError(null);
     setSubmitting(true);
     try {
-      const res = await fetch('/api/auth/setup-admin', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          newPassword: adminNewPassword,
-          bootstrapPasscode: bootstrapPasscode || undefined,
-        }),
-      });
-      const contentType = res.headers.get('content-type') ?? '';
-      if (!contentType.includes('application/json')) {
-        setSetupError('ไม่พบเซิร์ฟเวอร์ยืนยันตัวตน กรุณาเปิดผ่านโหมด Full-Stack Node Server');
-        return;
-      }
-      const data = (await res.json()) as {
-        token?: string;
-        user?: AuthUserProfile;
-        error?: string;
-      };
-      if (!res.ok || !data.token || !data.user) {
+      const data = await setupAdminAccount(
+        adminNewPassword,
+        bootstrapPasscode || undefined
+      );
+      if (!data.ok || !data.token || !data.user) {
         setSetupError(data.error ?? 'ไม่สามารถตั้งค่ารหัสผ่านผู้ดูแลระบบได้');
         return;
       }
@@ -144,7 +118,7 @@ export function PortalAuthGate({ onAuthenticated }: PortalAuthGateProps) {
       setBootstrapPasscode('');
       onAuthenticated(data.token, data.user);
     } catch {
-      setSetupError('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
+      setSetupError('เกิดข้อผิดพลาดในการตั้งค่ารหัสผ่านผู้ดูแลระบบ');
     } finally {
       setSubmitting(false);
     }
@@ -155,29 +129,15 @@ export function PortalAuthGate({ onAuthenticated }: PortalAuthGateProps) {
     setLoginError(null);
     setSubmitting(true);
     try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: username.trim(), password }),
-      });
-      const contentType = res.headers.get('content-type') ?? '';
-      if (!contentType.includes('application/json')) {
-        setLoginError('ไม่พบเซิร์ฟเวอร์ยืนยันตัวตน กรุณาใช้งานผ่าน Full-Stack Node Server');
-        return;
-      }
-      const data = (await res.json()) as {
-        token?: string;
-        user?: AuthUserProfile;
-        error?: string;
-      };
-      if (!res.ok || !data.token || !data.user) {
+      const data = await loginAccount(username, password);
+      if (!data.ok || !data.token || !data.user) {
         setLoginError(data.error ?? 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง');
         return;
       }
       setPassword('');
       onAuthenticated(data.token, data.user);
     } catch {
-      setLoginError('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
+      setLoginError('เกิดข้อผิดพลาดในการเข้าสู่ระบบ');
     } finally {
       setSubmitting(false);
     }
@@ -232,24 +192,24 @@ export function PortalAuthGate({ onAuthenticated }: PortalAuthGateProps) {
         </div>
       </section>
 
-      {/* Static Host Warning if /api/auth/* is unavailable */}
-      {serverUnavailable && (
-        <div className="rounded-xl bg-amber-50 border border-amber-200 p-5 flex items-start gap-3">
-          <AlertTriangle className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" aria-hidden="true" />
-          <div className="space-y-1 text-xs sm:text-sm text-amber-900">
+      {/* Static Host Info Banner (GitHub Pages / Static Hosting local Web Crypto mode) */}
+      {staticHostMode && (
+        <div className="rounded-xl bg-sky-50 border border-sky-200 p-4 flex items-start gap-3">
+          <AlertTriangle className="w-4 h-4 text-sky-700 shrink-0 mt-0.5" aria-hidden="true" />
+          <div className="space-y-0.5 text-xs text-sky-900">
             <div className="font-semibold">
-              กำลังทำงานบนโฮสต์แบบ Static — ไม่พบเซิร์ฟเวอร์ยืนยันตัวตน (/api/auth/*)
+              กำลังทำงานในโหมดเบราว์เซอร์สำหรับโฮสต์ Static (เช่น GitHub Pages)
             </div>
-            <p className="text-amber-800 leading-relaxed">
-              ระบบเข้าสู่ระบบและจัดการสมาชิก (CRUD) จำเป็นต้องทำงานร่วมกับ Full-Stack Server (Node.js / Express)
-              เพื่อตรวจสอบรหัสผ่านและแยกสิทธิ์อย่างปลอดภัย หากต้องการเข้าสู่ระบบเต็มรูปแบบ กรุณาเปิดผ่านเซิร์ฟเวอร์แอปพลิเคชันหลัก
+            <p className="text-sky-800 leading-relaxed">
+              ระบบได้เปิดใช้งานการยืนยันตัวตนและจัดการสมาชิก (CRUD) ผ่าน Web Crypto (PBKDF2) บนเบราว์เซอร์ให้โดยอัตโนมัติ
+              ท่านสามารถตั้งรหัสผ่าน <span className="font-mono font-semibold">admin</span> และเข้าสู่ระบบได้ทันที
             </p>
           </div>
         </div>
       )}
 
       {/* First-Run Admin Setup (shown only when admin has not been initialized yet) */}
-      {!serverUnavailable && !adminConfigured && (
+      {!adminConfigured && (
         <form
           onSubmit={handleFirstRunAdminSetup}
           className="clinical-surface rounded-2xl p-6 bg-teal-50/60 border border-teal-200 space-y-4"
@@ -381,7 +341,7 @@ export function PortalAuthGate({ onAuthenticated }: PortalAuthGateProps) {
 
           <button
             type="submit"
-            disabled={submitting || serverUnavailable}
+            disabled={submitting}
             className="w-full py-2.5 text-sm font-semibold text-white bg-[#091A32] rounded-lg hover:bg-[#0F2A4A] transition-colors cursor-pointer disabled:opacity-50"
           >
             {submitting ? 'กำลังตรวจสอบสิทธิ์...' : 'เข้าสู่ระบบ'}
@@ -433,9 +393,7 @@ export function PortalAuthGate({ onAuthenticated }: PortalAuthGateProps) {
               <div className="px-5 py-8 text-center text-xs text-slate-500">
                 {loadingStatus
                   ? 'กำลังโหลดรายชื่อบัญชี...'
-                  : serverUnavailable
-                    ? 'ไม่สามารถโหลดรายชื่อบัญชีบนโฮสต์ Static ได้'
-                    : 'ไม่พบบัญชีที่ตรงกับคำค้นหา'}
+                  : 'ไม่พบบัญชีที่ตรงกับคำค้นหา'}
               </div>
             ) : (
               filteredDirectory.map((item) => (

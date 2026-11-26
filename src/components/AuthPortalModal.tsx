@@ -16,24 +16,20 @@ import {
   X,
 } from 'lucide-react';
 import { AuthUserProfile, UserRole } from '../types/medicalSchool';
-
-interface BootstrapDirectoryEntry {
-  username: string;
-  role: UserRole;
-  displayName: string;
-  affiliation: string;
-  studentId?: string;
-  assignedCourseCodes?: string[];
-  hasPasswordSet: boolean;
-}
-
-interface IssuedCredentialSlip {
-  username: string;
-  displayName: string;
-  role: UserRole;
-  affiliation?: string;
-  temporaryPassword: string;
-}
+import {
+  BootstrapDirectoryEntry,
+  IssuedCredentialSlip,
+  changeAccountPassword,
+  createMemberAccount,
+  deleteMemberAccount,
+  getBootstrapStatus,
+  getManagedUsers,
+  issueBatchUserCredentials,
+  issueUserCredential,
+  loginAccount,
+  setupAdminAccount,
+  updateMemberAccount,
+} from '../utils/authClient';
 
 interface AuthPortalModalProps {
   isOpen: boolean;
@@ -130,13 +126,7 @@ export function AuthPortalModal({
 
   const loadBootstrapStatus = async () => {
     try {
-      const res = await fetch('/api/auth/bootstrap-status');
-      if (!res.ok) return;
-      const data = (await res.json()) as {
-        adminConfigured: boolean;
-        requiresBootstrapPasscode: boolean;
-        accounts: BootstrapDirectoryEntry[];
-      };
+      const data = await getBootstrapStatus();
       setAdminConfigured(data.adminConfigured);
       setRequiresBootstrapPasscode(data.requiresBootstrapPasscode);
       setDirectory(data.accounts);
@@ -147,11 +137,8 @@ export function AuthPortalModal({
 
   const loadManagedUsers = async (token: string) => {
     try {
-      const res = await fetch('/api/auth/users', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) return;
-      const data = (await res.json()) as { users: AuthUserProfile[] };
+      const data = await getManagedUsers(token);
+      if (!data.ok || !data.users) return;
       setManagedUsers(data.users);
     } catch {
       // Ignore transient errors
@@ -163,20 +150,11 @@ export function AuthPortalModal({
     setSetupError(null);
     setSubmitting(true);
     try {
-      const res = await fetch('/api/auth/setup-admin', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          newPassword: adminNewPassword,
-          bootstrapPasscode: bootstrapPasscode || undefined,
-        }),
-      });
-      const data = (await res.json()) as {
-        token?: string;
-        user?: AuthUserProfile;
-        error?: string;
-      };
-      if (!res.ok || !data.token || !data.user) {
+      const data = await setupAdminAccount(
+        adminNewPassword,
+        bootstrapPasscode || undefined
+      );
+      if (!data.ok || !data.token || !data.user) {
         setSetupError(data.error ?? 'ไม่สามารถตั้งค่ารหัสผ่านผู้ดูแลระบบได้');
         return;
       }
@@ -187,7 +165,7 @@ export function AuthPortalModal({
       await loadManagedUsers(data.token);
       setActiveTab('manage');
     } catch {
-      setSetupError('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
+      setSetupError('เกิดข้อผิดพลาดในการตั้งค่ารหัสผ่านผู้ดูแลระบบ');
     } finally {
       setSubmitting(false);
     }
@@ -198,17 +176,8 @@ export function AuthPortalModal({
     setLoginError(null);
     setSubmitting(true);
     try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
-      });
-      const data = (await res.json()) as {
-        token?: string;
-        user?: AuthUserProfile;
-        error?: string;
-      };
-      if (!res.ok || !data.token || !data.user) {
+      const data = await loginAccount(username, password);
+      if (!data.ok || !data.token || !data.user) {
         setLoginError(data.error ?? 'เข้าสู่ระบบไม่สำเร็จ');
         return;
       }
@@ -216,7 +185,7 @@ export function AuthPortalModal({
       onAuthenticated(data.token, data.user);
       onClose();
     } catch {
-      setLoginError('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
+      setLoginError('เกิดข้อผิดพลาดในการเข้าสู่ระบบ');
     } finally {
       setSubmitting(false);
     }
@@ -235,26 +204,14 @@ export function AuthPortalModal({
     setManageError(null);
     setManageMessage(null);
     try {
-      const res = await fetch('/api/auth/users/issue', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${authToken}`,
-        },
-        body: JSON.stringify({
-          username: targetUsername,
-          customPassword: optionalCustomPassword || undefined,
-          displayName: extraUser?.displayName || undefined,
-          role: extraUser?.role || undefined,
-          affiliation: extraUser?.affiliation || undefined,
-        }),
+      const data = await issueUserCredential(authToken, {
+        username: targetUsername,
+        customPassword: optionalCustomPassword || undefined,
+        displayName: extraUser?.displayName || undefined,
+        role: extraUser?.role || undefined,
+        affiliation: extraUser?.affiliation || undefined,
       });
-      const data = (await res.json()) as {
-        user?: AuthUserProfile;
-        issuedCredentials?: IssuedCredentialSlip;
-        error?: string;
-      };
-      if (!res.ok || !data.issuedCredentials) {
+      if (!data.ok || !data.issuedCredentials) {
         setManageError(data.error ?? 'ไม่สามารถออกรหัสผ่านได้');
         return;
       }
@@ -268,7 +225,7 @@ export function AuthPortalModal({
       await loadManagedUsers(authToken);
       await loadBootstrapStatus();
     } catch {
-      setManageError('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
+      setManageError('เกิดข้อผิดพลาดในการออกรหัสผ่าน');
     }
   };
 
@@ -277,20 +234,8 @@ export function AuthPortalModal({
     setManageError(null);
     setManageMessage(null);
     try {
-      const res = await fetch('/api/auth/users/issue-batch', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${authToken}`,
-        },
-        body: JSON.stringify({ targetRole, onlyUnset: true }),
-      });
-      const data = (await res.json()) as {
-        count?: number;
-        credentials?: IssuedCredentialSlip[];
-        error?: string;
-      };
-      if (!res.ok || !data.credentials) {
+      const data = await issueBatchUserCredentials(authToken, targetRole, true);
+      if (!data.ok || !data.credentials) {
         setManageError(data.error ?? 'ไม่สามารถออกรหัสผ่านแบบกลุ่มได้');
         return;
       }
@@ -307,7 +252,7 @@ export function AuthPortalModal({
       await loadManagedUsers(authToken);
       await loadBootstrapStatus();
     } catch {
-      setManageError('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
+      setManageError('เกิดข้อผิดพลาดในการออกรหัสผ่านแบบกลุ่ม');
     }
   };
 
@@ -322,28 +267,16 @@ export function AuthPortalModal({
       .filter(Boolean);
 
     try {
-      const res = await fetch('/api/auth/users', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${authToken}`,
-        },
-        body: JSON.stringify({
-          username: customIssueUsername.trim(),
-          customPassword: customIssuePassword.trim() || undefined,
-          displayName: newUserDisplayName.trim() || customIssueUsername.trim(),
-          role: newUserRole,
-          affiliation: newUserAffiliation.trim() || undefined,
-          studentId: newUserRole === 'student' ? newUserStudentId.trim() || undefined : undefined,
-          assignedCourseCodes: parsedCourses.length > 0 ? parsedCourses : undefined,
-        }),
+      const data = await createMemberAccount(authToken, {
+        username: customIssueUsername.trim(),
+        customPassword: customIssuePassword.trim() || undefined,
+        displayName: newUserDisplayName.trim() || customIssueUsername.trim(),
+        role: newUserRole,
+        affiliation: newUserAffiliation.trim() || undefined,
+        studentId: newUserRole === 'student' ? newUserStudentId.trim() || undefined : undefined,
+        assignedCourseCodes: parsedCourses.length > 0 ? parsedCourses : undefined,
       });
-      const data = (await res.json()) as {
-        user?: AuthUserProfile;
-        issuedCredentials?: IssuedCredentialSlip;
-        error?: string;
-      };
-      if (!res.ok || !data.issuedCredentials) {
+      if (!data.ok || !data.issuedCredentials) {
         setManageError(data.error ?? 'ไม่สามารถสร้างบัญชีสมาชิกได้');
         return;
       }
@@ -351,7 +284,9 @@ export function AuthPortalModal({
         data.issuedCredentials!,
         ...prev.filter((s) => s.username !== data.issuedCredentials!.username),
       ]);
-      setManageMessage(`สร้างบัญชีสมาชิก ${data.issuedCredentials.displayName} (@${data.issuedCredentials.username}) เรียบร้อยแล้ว`);
+      setManageMessage(
+        `สร้างบัญชีสมาชิก ${data.issuedCredentials.displayName} (@${data.issuedCredentials.username}) เรียบร้อยแล้ว`
+      );
       setCustomIssueUsername('');
       setCustomIssuePassword('');
       setNewUserDisplayName('');
@@ -361,7 +296,7 @@ export function AuthPortalModal({
       await loadManagedUsers(authToken);
       await loadBootstrapStatus();
     } catch {
-      setManageError('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
+      setManageError('เกิดข้อผิดพลาดในการสร้างบัญชีสมาชิก');
     }
   };
 
@@ -389,34 +324,28 @@ export function AuthPortalModal({
       .filter(Boolean);
 
     try {
-      const res = await fetch(`/api/auth/users/${encodeURIComponent(editingUsername)}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${authToken}`,
-        },
-        body: JSON.stringify({
-          displayName: editDisplayName.trim(),
-          role: editRole,
-          affiliation: editAffiliation.trim(),
-          studentId: editRole === 'student' ? editStudentId.trim() : '',
-          assignedCourseCodes: parsedCourses,
-        }),
+      const data = await updateMemberAccount(authToken, editingUsername, {
+        displayName: editDisplayName.trim(),
+        role: editRole,
+        affiliation: editAffiliation.trim(),
+        studentId: editRole === 'student' ? editStudentId.trim() : '',
+        assignedCourseCodes: parsedCourses,
       });
-      const data = (await res.json()) as { user?: AuthUserProfile; error?: string };
-      if (!res.ok || !data.user) {
+      if (!data.ok || !data.user) {
         setManageError(data.error ?? 'ไม่สามารถอัปเดตข้อมูลสมาชิกได้');
         return;
       }
       if (authUser && data.user.username === authUser.username) {
         onUpdatedProfile(data.user);
       }
-      setManageMessage(`อัปเดตข้อมูลสมาชิก ${data.user.displayName} (@${data.user.username}) เรียบร้อยแล้ว`);
+      setManageMessage(
+        `อัปเดตข้อมูลสมาชิก ${data.user.displayName} (@${data.user.username}) เรียบร้อยแล้ว`
+      );
       setEditingUsername(null);
       await loadManagedUsers(authToken);
       await loadBootstrapStatus();
     } catch {
-      setManageError('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
+      setManageError('เกิดข้อผิดพลาดในการอัปเดตข้อมูลสมาชิก');
     } finally {
       setSavingEdit(false);
     }
@@ -428,12 +357,8 @@ export function AuthPortalModal({
     setManageError(null);
     setManageMessage(null);
     try {
-      const res = await fetch(`/api/auth/users/${encodeURIComponent(targetUsername)}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${authToken}` },
-      });
-      const data = (await res.json()) as { ok?: boolean; error?: string };
-      if (!res.ok) {
+      const data = await deleteMemberAccount(authToken, targetUsername);
+      if (!data.ok) {
         setManageError(data.error ?? 'ไม่สามารถลบสมาชิกได้');
         return;
       }
@@ -446,7 +371,7 @@ export function AuthPortalModal({
       await loadManagedUsers(authToken);
       await loadBootstrapStatus();
     } catch {
-      setManageError('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
+      setManageError('เกิดข้อผิดพลาดในการลบสมาชิก');
     } finally {
       setDeletingUsername(null);
     }
@@ -458,19 +383,8 @@ export function AuthPortalModal({
     setPwError(null);
     setPwMessage(null);
     try {
-      const res = await fetch('/api/auth/change-password', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${authToken}`,
-        },
-        body: JSON.stringify({
-          currentPassword,
-          newPassword: newOwnPassword,
-        }),
-      });
-      const data = (await res.json()) as { user?: AuthUserProfile; error?: string };
-      if (!res.ok || !data.user) {
+      const data = await changeAccountPassword(authToken, currentPassword, newOwnPassword);
+      if (!data.ok || !data.user) {
         setPwError(data.error ?? 'เปลี่ยนรหัสผ่านไม่สำเร็จ');
         return;
       }
@@ -479,7 +393,7 @@ export function AuthPortalModal({
       setPwMessage('อัปเดตรหัสผ่านส่วนตัวเรียบร้อยแล้ว');
       onUpdatedProfile(data.user);
     } catch {
-      setPwError('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
+      setPwError('เกิดข้อผิดพลาดในการเปลี่ยนรหัสผ่าน');
     }
   };
 
