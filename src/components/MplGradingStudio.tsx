@@ -98,7 +98,6 @@ export function MplGradingStudio({
 
   const canConfigure =
     role === 'admin' ||
-    role === 'faculty' ||
     (role === 'course_officer' &&
       (!assignedCourseCodes ||
         assignedCourseCodes.length === 0 ||
@@ -268,7 +267,7 @@ export function MplGradingStudio({
               <span className="font-semibold text-slate-900">สิทธิ์การตั้งค่าสัดส่วนและ MPL: </span>
               การแก้ไขร้อยละน้ำหนักคะแนนและจุดตัด MPL สงวนสิทธิ์เฉพาะ{' '}
               <span className="font-semibold">
-                อาจารย์แพทย์ นักวิชาการประจำรายวิชา หรือ แอดมิน
+                นักวิชาการประจำรายวิชา (ระดับ 3A) หรือ แอดมิน (ระดับ 3B)
               </span>{' '}
               เท่านั้น
             </div>

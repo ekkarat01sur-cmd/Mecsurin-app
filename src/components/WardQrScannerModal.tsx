@@ -18,41 +18,45 @@ import {
 } from 'lucide-react';
 import {
   BedsideCheckInRecord,
+  ClinicalSetting,
   DutyShift,
+  FacultyGeneratedQrStation,
   ProcedureRole,
   UserRole,
 } from '../types/medicalSchool';
+import {
+  AnyClinicQrPayload,
+  BedsideQrPayload,
+  ProcedureQrPayload,
+  WardQrPayload,
+  parseClinicQrData,
+  serializeFacultyStationQr,
+} from '../utils/qrPayloads';
 
-export interface WardQrPayload {
-  system: 'SURIN_MEC';
-  type: 'WARD_CHECKIN';
-  wardCode: string;
-  department: string;
-  wardOrUnit: string;
-  shiftId?: string;
-}
-
-export interface BedsideQrPayload {
-  system: 'SURIN_MEC';
-  type: 'BEDSIDE_CASE';
-  scanKind: 'patient_case' | 'ward_round';
-  bedsideCode: string;
-  department: string;
-  wardOrUnit: string;
-  bedOrRoom: string;
-  caseCode: string;
-  patientSummary: string;
-  diagnosis: string;
-  icd10: string;
-  supervisingStaff: string;
-}
-
-export type AnyClinicQrPayload = WardQrPayload | BedsideQrPayload;
+export type {
+  AnyClinicQrPayload,
+  BedsideQrPayload,
+  ProcedureQrPayload,
+  WardQrPayload,
+};
 
 export interface QrCheckInResult {
   shift: DutyShift;
   matchedExisting: boolean;
   wardCode: string;
+}
+
+export interface ProcedureCheckInResult {
+  procedureCode: string;
+  procedureName: string;
+  department: string;
+  wardOrUnit: string;
+  setting: ClinicalSetting;
+  role: ProcedureRole;
+  supervisingStaff: string;
+  checkedInAt: string;
+  logbookId: string;
+  matchedSkillValidated: boolean;
 }
 
 export interface BedsideReflectionInput {
@@ -68,8 +72,13 @@ interface WardQrScannerModalProps {
   role: UserRole;
   currentStudentName: string;
   shifts: DutyShift[];
-  onRecordQrCheckIn: (payload: WardQrPayload) => QrCheckInResult;
+  customQrStations?: FacultyGeneratedQrStation[];
+  initialScanRawPayload?: string | null;
+  onClearInitialScanPayload?: () => void;
+  onOpenFacultyQrGenerator?: () => void;
+  onRecordQrCheckIn: (payload: WardQrPayload) => QrCheckInResult | null;
   onRecordBedsideCheckIn: (payload: BedsideQrPayload) => BedsideCheckInRecord;
+  onRecordProcedureCheckIn?: (payload: ProcedureQrPayload) => ProcedureCheckInResult | null;
   onSaveBedsideReflection: (
     recordId: string,
     input: BedsideReflectionInput
@@ -238,125 +247,7 @@ function serializeBedsideQr(preset: BedsideStationPreset): string {
   return JSON.stringify(payload);
 }
 
-export function parseWardQrData(rawText: string): AnyClinicQrPayload | null {
-  const trimmed = rawText.trim();
-  if (!trimmed) return null;
-
-  // Format 1: Structured JSON payload
-  if (trimmed.startsWith('{')) {
-    try {
-      const parsed = JSON.parse(trimmed) as Partial<
-        Omit<WardQrPayload, 'type'> &
-          Omit<BedsideQrPayload, 'type'> & { type: string }
-      >;
-      if (parsed.system !== 'SURIN_MEC') return null;
-
-      if (
-        parsed.type === 'BEDSIDE_CASE' &&
-        typeof parsed.department === 'string' &&
-        typeof parsed.wardOrUnit === 'string' &&
-        typeof parsed.caseCode === 'string'
-      ) {
-        return {
-          system: 'SURIN_MEC',
-          type: 'BEDSIDE_CASE',
-          scanKind: parsed.scanKind === 'ward_round' ? 'ward_round' : 'patient_case',
-          bedsideCode:
-            typeof parsed.bedsideCode === 'string' && parsed.bedsideCode.trim()
-              ? parsed.bedsideCode.trim()
-              : 'BED-SURIN',
-          department: parsed.department.trim(),
-          wardOrUnit: parsed.wardOrUnit.trim(),
-          bedOrRoom:
-            typeof parsed.bedOrRoom === 'string' && parsed.bedOrRoom.trim()
-              ? parsed.bedOrRoom.trim()
-              : parsed.wardOrUnit.trim(),
-          caseCode: parsed.caseCode.trim(),
-          patientSummary:
-            typeof parsed.patientSummary === 'string' && parsed.patientSummary.trim()
-              ? parsed.patientSummary.trim()
-              : 'ผู้ป่วยรับการดูแลรักษาในหอผู้ป่วย รพ.สุรินทร์',
-          diagnosis:
-            typeof parsed.diagnosis === 'string' && parsed.diagnosis.trim()
-              ? parsed.diagnosis.trim()
-              : 'Clinical Case Encounter',
-          icd10:
-            typeof parsed.icd10 === 'string' && parsed.icd10.trim()
-              ? parsed.icd10.trim()
-              : 'Z00.0',
-          supervisingStaff:
-            typeof parsed.supervisingStaff === 'string' && parsed.supervisingStaff.trim()
-              ? parsed.supervisingStaff.trim()
-              : 'อาจารย์แพทย์ประจำหอผู้ป่วย',
-        };
-      }
-
-      if (
-        parsed.type === 'WARD_CHECKIN' &&
-        typeof parsed.department === 'string' &&
-        typeof parsed.wardOrUnit === 'string' &&
-        parsed.department.trim().length > 0 &&
-        parsed.wardOrUnit.trim().length > 0
-      ) {
-        return {
-          system: 'SURIN_MEC',
-          type: 'WARD_CHECKIN',
-          wardCode:
-            typeof parsed.wardCode === 'string' && parsed.wardCode.trim()
-              ? parsed.wardCode.trim()
-              : 'WARD-SURIN',
-          department: parsed.department.trim(),
-          wardOrUnit: parsed.wardOrUnit.trim(),
-          shiftId:
-            typeof parsed.shiftId === 'string' && parsed.shiftId.trim()
-              ? parsed.shiftId.trim()
-              : undefined,
-        };
-      }
-    } catch {
-      return null;
-    }
-  }
-
-  // Format 2: Pipe-delimited Ward QR: SURINMEC|WARD_CODE|DEPARTMENT|WARD_OR_UNIT[|SHIFT_ID]
-  if (trimmed.startsWith('SURINMEC|')) {
-    const parts = trimmed.split('|').map((p) => p.trim());
-    if (parts.length >= 4 && parts[1] && parts[2] && parts[3]) {
-      return {
-        system: 'SURIN_MEC',
-        type: 'WARD_CHECKIN',
-        wardCode: parts[1],
-        department: parts[2],
-        wardOrUnit: parts[3],
-        shiftId: parts[4] || undefined,
-      };
-    }
-  }
-
-  // Format 3: Pipe-delimited Bedside QR:
-  // SURINBED|BEDSIDE_CODE|SCAN_KIND|DEPARTMENT|WARD_OR_UNIT|BED_OR_ROOM|CASE_CODE|PATIENT_SUMMARY|DIAGNOSIS|ICD10|SUPERVISING_STAFF
-  if (trimmed.startsWith('SURINBED|')) {
-    const parts = trimmed.split('|').map((p) => p.trim());
-    if (parts.length >= 8 && parts[1] && parts[3] && parts[4] && parts[6]) {
-      return {
-        system: 'SURIN_MEC',
-        type: 'BEDSIDE_CASE',
-        bedsideCode: parts[1],
-        scanKind: parts[2] === 'ward_round' ? 'ward_round' : 'patient_case',
-        department: parts[3],
-        wardOrUnit: parts[4],
-        bedOrRoom: parts[5] || parts[4],
-        caseCode: parts[6],
-        patientSummary: parts[7] || 'ผู้ป่วยรับการดูแลรักษาในหอผู้ป่วย',
-        diagnosis: parts[8] || 'Clinical Case Encounter',
-        icd10: parts[9] || 'Z00.0',
-        supervisingStaff: parts[10] || 'อาจารย์แพทย์ประจำหอผู้ป่วย',
-      };
-    }
-  }
-
-  return null;
-}
+export const parseWardQrData = parseClinicQrData;
 
 export function WardQrScannerModal({
   isOpen,
@@ -364,17 +255,24 @@ export function WardQrScannerModal({
   role,
   currentStudentName,
   shifts,
+  customQrStations = [],
+  initialScanRawPayload,
+  onClearInitialScanPayload,
+  onOpenFacultyQrGenerator,
   onRecordQrCheckIn,
   onRecordBedsideCheckIn,
+  onRecordProcedureCheckIn,
   onSaveBedsideReflection,
 }: WardQrScannerModalProps) {
   const [activeMode, setActiveMode] = useState<'scan' | 'stations'>('scan');
-  const [stationCategory, setStationCategory] = useState<'ward' | 'bedside'>('bedside');
+  const [stationCategory, setStationCategory] = useState<'bedside' | 'ward' | 'faculty'>('bedside');
   const [cameraActive, setCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
   const [scanError, setScanError] = useState<string | null>(null);
   const [lastResult, setLastResult] = useState<QrCheckInResult | null>(null);
+  const [lastProcedureResult, setLastProcedureResult] =
+    useState<ProcedureCheckInResult | null>(null);
   const [lastBedsideResult, setLastBedsideResult] = useState<BedsideCheckInRecord | null>(
     null
   );
@@ -388,6 +286,7 @@ export function WardQrScannerModal({
 
   const [stationQrImages, setStationQrImages] = useState<Record<string, string>>({});
   const [bedsideQrImages, setBedsideQrImages] = useState<Record<string, string>>({});
+  const [facultyQrImages, setFacultyQrImages] = useState<Record<string, string>>({});
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -419,6 +318,11 @@ export function WardQrScannerModal({
     return Array.from(map.values());
   }, [shifts]);
 
+  const activeFacultyQrStations = useMemo(
+    () => customQrStations.filter((st) => st.isActive),
+    [customQrStations]
+  );
+
   const stopCamera = useCallback(() => {
     if (rafRef.current !== null) {
       cancelAnimationFrame(rafRef.current);
@@ -436,19 +340,37 @@ export function WardQrScannerModal({
 
   const handleDecodedPayload = useCallback(
     (rawText: string) => {
-      const parsed = parseWardQrData(rawText);
+      const parsed = parseClinicQrData(rawText);
       if (!parsed) {
         setScanError(
-          'พบ QR Code ที่ไม่ใช่จุดลงเวลาหรือป้ายข้างเตียงของศูนย์แพทยฯ รพ.สุรินทร์ กรุณาตรวจสอบป้าย QR อีกครั้ง'
+          'พบ QR Code ที่ไม่ใช่จุดลงเวลาหรือหัตถการของศูนย์แพทยฯ รพ.สุรินทร์ กรุณาตรวจสอบป้าย QR อีกครั้ง'
         );
         return false;
       }
 
       setScanError(null);
 
+      if (parsed.type === 'PROCEDURE_CHECKIN') {
+        if (!onRecordProcedureCheckIn) {
+          setScanError('ไม่พบตัวรับข้อมูลเช็กอินหัตถการในระบบ');
+          return false;
+        }
+        const procRes = onRecordProcedureCheckIn(parsed);
+        if (!procRes) {
+          setScanError('QR Code หัตถการนี้ถูกปิดการใช้งานโดยอาจารย์แพทย์แล้ว');
+          return false;
+        }
+        setLastResult(null);
+        setLastBedsideResult(null);
+        setLastProcedureResult(procRes);
+        stopCamera();
+        return true;
+      }
+
       if (parsed.type === 'BEDSIDE_CASE') {
         const record = onRecordBedsideCheckIn(parsed);
         setLastResult(null);
+        setLastProcedureResult(null);
         setLastBedsideResult(record);
         setReflectionRole(
           parsed.scanKind === 'ward_round' ? 'Observe' : 'Assist'
@@ -462,13 +384,25 @@ export function WardQrScannerModal({
       }
 
       const res = onRecordQrCheckIn(parsed);
+      if (!res) {
+        setScanError('QR Code หอผู้ป่วยนี้ถูกปิดการใช้งานโดยอาจารย์แพทย์แล้ว');
+        return false;
+      }
       setLastBedsideResult(null);
+      setLastProcedureResult(null);
       setLastResult(res);
       stopCamera();
       return true;
     },
-    [onRecordBedsideCheckIn, onRecordQrCheckIn, stopCamera]
+    [onRecordBedsideCheckIn, onRecordProcedureCheckIn, onRecordQrCheckIn, stopCamera]
   );
+
+  useEffect(() => {
+    if (!isOpen || !initialScanRawPayload) return;
+    setActiveMode('scan');
+    handleDecodedPayload(initialScanRawPayload);
+    onClearInitialScanPayload?.();
+  }, [isOpen, initialScanRawPayload, handleDecodedPayload, onClearInitialScanPayload]);
 
   const startCamera = useCallback(
     async (mode: 'environment' | 'user' = facingMode) => {
@@ -567,13 +501,13 @@ export function WardQrScannerModal({
     };
   }, [activeMode, cameraActive, handleDecodedPayload, isOpen]);
 
-  // Generate QR code images for Ward Stations & Bedside Cases
+  // Generate QR code images for Ward Stations, Bedside Cases & Faculty Generated Stations
   useEffect(() => {
     if (!isOpen) return;
     let cancelled = false;
 
     const generateAll = async () => {
-      const [wardEntries, bedsideEntries] = await Promise.all([
+      const [wardEntries, bedsideEntries, facultyEntries] = await Promise.all([
         Promise.all(
           stationsList.map(async (st) => {
             const dataUrl = await QRCode.toDataURL(serializeWardQr(st), {
@@ -594,11 +528,25 @@ export function WardQrScannerModal({
             return [bp.bedsideCode, dataUrl] as const;
           })
         ),
+        Promise.all(
+          activeFacultyQrStations.map(async (fq) => {
+            const dataUrl = await QRCode.toDataURL(serializeFacultyStationQr(fq), {
+              width: 220,
+              margin: 2,
+              color: {
+                dark: fq.kind === 'procedure' ? '#0F766E' : '#091A32',
+                light: '#FFFFFF',
+              },
+            });
+            return [fq.id, dataUrl] as const;
+          })
+        ),
       ]);
 
       if (!cancelled) {
         setStationQrImages(Object.fromEntries(wardEntries));
         setBedsideQrImages(Object.fromEntries(bedsideEntries));
+        setFacultyQrImages(Object.fromEntries(facultyEntries));
       }
     };
 
@@ -606,7 +554,7 @@ export function WardQrScannerModal({
     return () => {
       cancelled = true;
     };
-  }, [isOpen, stationsList]);
+  }, [isOpen, stationsList, activeFacultyQrStations]);
 
   // Stop camera when modal closes or switches tab
   useEffect(() => {
@@ -950,7 +898,85 @@ export function WardQrScannerModal({
                   </div>
                 )}
 
-                {lastBedsideResult ? (
+                {lastProcedureResult ? (
+                  <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-5 space-y-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="inline-flex items-center gap-2 text-emerald-900 font-semibold text-sm">
+                        <CheckCircle2 className="w-5 h-5 text-emerald-700 shrink-0" aria-hidden="true" />
+                        <span>เช็กอินหัตถการทางคลินิกอัตโนมัติสำเร็จ</span>
+                      </div>
+                      <span className="font-mono text-xs font-semibold text-emerald-800 bg-white border border-emerald-200 px-2 py-0.5 rounded tabular-nums">
+                        {lastProcedureResult.checkedInAt}
+                      </span>
+                    </div>
+
+                    <dl className="space-y-2 text-xs border-t border-emerald-200/80 pt-3">
+                      <div className="flex justify-between gap-2">
+                        <dt className="text-emerald-800">รหัส QR หัตถการ</dt>
+                        <dd className="font-mono font-semibold text-emerald-950">
+                          {lastProcedureResult.procedureCode}
+                        </dd>
+                      </div>
+                      <div className="flex justify-between gap-2">
+                        <dt className="text-emerald-800">หัตถการ</dt>
+                        <dd className="font-semibold text-emerald-950 text-right">
+                          {lastProcedureResult.procedureName}
+                        </dd>
+                      </div>
+                      <div className="flex justify-between gap-2">
+                        <dt className="text-emerald-800">กลุ่มงาน / หอผู้ป่วย</dt>
+                        <dd className="font-medium text-emerald-950 text-right">
+                          {lastProcedureResult.department} · {lastProcedureResult.wardOrUnit}
+                        </dd>
+                      </div>
+                      <div className="flex justify-between gap-2">
+                        <dt className="text-emerald-800">Setting / บทบาท</dt>
+                        <dd className="font-mono font-medium text-emerald-950 text-right">
+                          {lastProcedureResult.setting} · {lastProcedureResult.role}
+                        </dd>
+                      </div>
+                      <div className="flex justify-between gap-2">
+                        <dt className="text-emerald-800">อาจารย์ผู้รับรอง</dt>
+                        <dd className="font-medium text-emerald-950 text-right">
+                          {lastProcedureResult.supervisingStaff}
+                        </dd>
+                      </div>
+                      <div className="flex justify-between gap-2">
+                        <dt className="text-emerald-800">การบันทึกผล</dt>
+                        <dd className="text-emerald-950 text-right">
+                          บันทึกเข้า E-Logbook และอัปเดต Quota อัตโนมัติแล้ว
+                          {lastProcedureResult.matchedSkillValidated
+                            ? ' (รับรองทักษะเรียบร้อย)'
+                            : ''}
+                        </dd>
+                      </div>
+                    </dl>
+
+                    <div className="pt-2 flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setLastProcedureResult(null);
+                          lastDecodedRawRef.current = '';
+                          void startCamera(facingMode);
+                        }}
+                        className="px-3 py-1.5 text-xs font-medium text-emerald-900 bg-white border border-emerald-300 rounded-lg hover:bg-emerald-100 cursor-pointer whitespace-nowrap shrink-0"
+                      >
+                        สแกนจุดถัดไป
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          stopCamera();
+                          onClose();
+                        }}
+                        className="px-3 py-1.5 text-xs font-medium text-white bg-[#0F2A4A] rounded-lg hover:bg-[#163B66] cursor-pointer whitespace-nowrap shrink-0"
+                      >
+                        เสร็จสิ้น
+                      </button>
+                    </div>
+                  </div>
+                ) : lastBedsideResult ? (
                   <div className="border border-teal-200 bg-teal-50/50 rounded-xl p-5 space-y-4">
                     <div className="flex items-start justify-between gap-2">
                       <div className="inline-flex items-center gap-2 text-teal-900 font-semibold text-sm">
@@ -1232,7 +1258,18 @@ export function WardQrScannerModal({
           ) : (
             <div className="space-y-5">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="inline-flex items-center p-1 bg-slate-100 border border-slate-200 rounded-lg self-start">
+                <div className="inline-flex flex-wrap items-center p-1 bg-slate-100 border border-slate-200 rounded-lg self-start">
+                  <button
+                    type="button"
+                    onClick={() => setStationCategory('faculty')}
+                    className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                      stationCategory === 'faculty'
+                        ? 'bg-white text-[#091A32] shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    QR อาจารย์สร้าง ({activeFacultyQrStations.length})
+                  </button>
                   <button
                     type="button"
                     onClick={() => setStationCategory('bedside')}
@@ -1242,7 +1279,7 @@ export function WardQrScannerModal({
                         : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
-                    QR ข้างเตียงผู้ป่วย & ราวด์วอร์ด ({BEDSIDE_CASE_PRESETS.length})
+                    QR ข้างเตียง & ราวด์วอร์ด ({BEDSIDE_CASE_PRESETS.length})
                   </button>
                   <button
                     type="button"
@@ -1257,17 +1294,126 @@ export function WardQrScannerModal({
                   </button>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => setActiveMode('scan')}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-[#0F2A4A] rounded-lg hover:bg-[#163B66] cursor-pointer whitespace-nowrap shrink-0 self-start sm:self-auto"
-                >
-                  <ScanLine className="w-3.5 h-3.5" aria-hidden="true" />
-                  <span>กลับไปหน้าสแกน QR</span>
-                </button>
+                <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+                  {isStaff && onOpenFacultyQrGenerator && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        stopCamera();
+                        onClose();
+                        onOpenFacultyQrGenerator();
+                      }}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-[#0F766E] rounded-lg hover:bg-[#0D625C] cursor-pointer whitespace-nowrap shrink-0"
+                    >
+                      <QrCode className="w-3.5 h-3.5" aria-hidden="true" />
+                      <span>สร้าง QR ใหม่ (อาจารย์)</span>
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setActiveMode('scan')}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-[#0F2A4A] rounded-lg hover:bg-[#163B66] cursor-pointer whitespace-nowrap shrink-0"
+                  >
+                    <ScanLine className="w-3.5 h-3.5" aria-hidden="true" />
+                    <span>กลับไปหน้าสแกน QR</span>
+                  </button>
+                </div>
               </div>
 
-              {stationCategory === 'bedside' ? (
+              {stationCategory === 'faculty' ? (
+                activeFacultyQrStations.length === 0 ? (
+                  <div className="p-8 text-center border border-slate-200 rounded-xl bg-slate-50 text-xs text-slate-600 space-y-2">
+                    <div>ยังไม่มี QR Code ที่อาจารย์สร้างไว้ในขณะนี้</div>
+                    {isStaff && onOpenFacultyQrGenerator && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onClose();
+                          onOpenFacultyQrGenerator();
+                        }}
+                        className="px-3.5 py-2 text-xs font-medium text-white bg-[#0F766E] rounded-lg cursor-pointer"
+                      >
+                        เปิดเครื่องมือสร้าง QR สำหรับอาจารย์
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {activeFacultyQrStations.map((fq) => {
+                      const qrUrl = facultyQrImages[fq.id];
+                      return (
+                        <div
+                          key={fq.id}
+                          className="border border-slate-200 rounded-xl p-4 bg-white flex flex-col justify-between gap-3"
+                        >
+                          <div className="space-y-1">
+                            <div className="flex items-center justify-between gap-2 text-[11px]">
+                              <span className="font-mono font-semibold text-[#0F766E]">
+                                {fq.code}
+                              </span>
+                              <span className="text-slate-500">
+                                {fq.kind === 'procedure' ? 'หัตถการคลินิก' : 'หอผู้ป่วย / เวร'}
+                              </span>
+                            </div>
+                            <div className="text-sm font-semibold text-slate-900 leading-snug">
+                              {fq.kind === 'procedure' ? fq.procedureName : fq.wardOrUnit}
+                            </div>
+                            <div className="text-xs text-slate-600">
+                              {fq.department} · {fq.wardOrUnit}
+                            </div>
+                            <div className="text-[11px] text-slate-500">
+                              ผู้กำกับ: {fq.supervisingStaff} · สแกนแล้ว {fq.checkInCount} ครั้ง
+                            </div>
+                          </div>
+
+                          <div className="flex justify-center py-2 bg-slate-50 rounded-lg border border-slate-200/80">
+                            {qrUrl ? (
+                              <img
+                                src={qrUrl}
+                                alt={`QR Code ${fq.code}`}
+                                className="w-36 h-36 object-contain"
+                              />
+                            ) : (
+                              <div className="w-36 h-36 flex items-center justify-center text-xs text-slate-400">
+                                กำลังสร้าง QR...
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2 pt-1">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setActiveMode('scan');
+                                handleDecodedPayload(serializeFacultyStationQr(fq));
+                              }}
+                              className="inline-flex items-center justify-center gap-1 px-2.5 py-2 text-xs font-medium text-white bg-[#0F766E] hover:bg-[#0D625C] rounded-lg cursor-pointer whitespace-nowrap shrink-0"
+                            >
+                              <ScanLine className="w-3.5 h-3.5" aria-hidden="true" />
+                              <span>เช็กอินทันที</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (!qrUrl) return;
+                                const link = document.createElement('a');
+                                link.href = qrUrl;
+                                link.download = `QR_${fq.code}.png`;
+                                link.click();
+                              }}
+                              disabled={!qrUrl}
+                              className="inline-flex items-center justify-center gap-1 px-2.5 py-2 text-xs font-medium text-[#0F2A4A] bg-slate-50 border border-slate-300 rounded-lg hover:bg-slate-100 disabled:opacity-50 cursor-pointer whitespace-nowrap shrink-0"
+                            >
+                              <Download className="w-3.5 h-3.5" aria-hidden="true" />
+                              <span>โหลด PNG</span>
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )
+              ) : stationCategory === 'bedside' ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {BEDSIDE_CASE_PRESETS.map((preset) => {
                     const qrUrl = bedsideQrImages[preset.bedsideCode];

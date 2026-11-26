@@ -93,7 +93,6 @@ export function CourseEvaluationConfigPanel({
     Boolean(assignedCourseCodes && assignedCourseCodes.length > 0);
   const canEditSelectedCourse =
     role === 'admin' ||
-    role === 'faculty' ||
     (role === 'course_officer' &&
       (!assignedCourseCodes ||
         assignedCourseCodes.length === 0 ||

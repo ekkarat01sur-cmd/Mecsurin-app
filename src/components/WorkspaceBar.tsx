@@ -16,11 +16,12 @@ import {
 import { AuthUserProfile, StudentPhotoMap, UserRole } from '../types/medicalSchool';
 import { ROLE_PERMISSION_PROFILES } from '../data/initialMedicalData';
 import { PWAInstallButton } from './PWAInstallButton';
+import { ADMIN_OFFICER_ROLES, hasRoleAccess } from './RoleAccessGuard';
 import { StudentAvatar } from './StudentAvatar';
 
 interface WorkspaceBarProps {
   role: UserRole;
-  onChangeRole: (role: UserRole) => void;
+  isAuthenticated: boolean;
   pendingCount: number;
   currentStudentId: string;
   currentStudentName?: string;
@@ -35,7 +36,7 @@ interface WorkspaceBarProps {
 
 export function WorkspaceBar({
   role,
-  onChangeRole,
+  isAuthenticated,
   pendingCount,
   currentStudentId,
   currentStudentName,
@@ -51,102 +52,126 @@ export function WorkspaceBar({
   const profile = ROLE_PERMISSION_PROFILES[role];
   const displayName = authUser ? authUser.displayName : profile.displayName;
   const affiliation = authUser ? authUser.affiliation : profile.affiliation;
-  const isBackOfficeManager = role === 'admin' || role === 'course_officer';
+  const isBackOfficeManager = hasRoleAccess(role, isAuthenticated, ADMIN_OFFICER_ROLES);
+  const canSyncSheets = hasRoleAccess(role, isAuthenticated, ADMIN_OFFICER_ROLES);
 
   return (
     <div className="bg-white/85 backdrop-blur-md border-b border-slate-200/80">
       <div className="max-w-[1280px] mx-auto px-4 sm:px-6 py-2.5 flex flex-col gap-2.5">
         <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-xs sm:text-sm text-slate-600">
-            {role === 'student' && (
-              <StudentAvatar
-                studentId={currentStudentId}
-                studentName={currentStudentName ?? displayName}
-                studentPhotos={studentPhotos}
-                size="xs"
-              />
-            )}
-            <span className="inline-flex items-center gap-1 font-semibold text-[#0F2A4A]">
-              <Shield className="w-3.5 h-3.5 text-[#0D9488]" aria-hidden="true" />
-              ระดับสิทธิ์ {profile.level}
-            </span>
-            <span aria-hidden="true" className="text-slate-300">·</span>
-            <span className="font-semibold text-slate-900">{displayName}</span>
-            {authUser && (
+          {isAuthenticated && authUser ? (
+            <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-xs sm:text-sm text-slate-600">
+              {role === 'student' && (
+                <StudentAvatar
+                  studentId={currentStudentId}
+                  studentName={currentStudentName ?? displayName}
+                  studentPhotos={studentPhotos}
+                  size="xs"
+                />
+              )}
+              <span className="inline-flex items-center gap-1 font-semibold text-[#0F2A4A]">
+                <Shield className="w-3.5 h-3.5 text-[#0D9488]" aria-hidden="true" />
+                ระดับสิทธิ์ {profile.level}
+              </span>
+              <span aria-hidden="true" className="text-slate-300">·</span>
+              <span className="font-semibold text-slate-900">{displayName}</span>
               <span className="font-mono text-xs text-[#0F766E]">
                 @{authUser.username}
               </span>
-            )}
-            <span aria-hidden="true" className="text-slate-300 hidden sm:inline">·</span>
-            <span className="hidden sm:inline">{affiliation}</span>
-            {authUser?.role === 'course_officer' &&
-              authUser.assignedCourseCodes &&
-              authUser.assignedCourseCodes.length > 0 && (
+              <span aria-hidden="true" className="text-slate-300 hidden sm:inline">·</span>
+              <span className="hidden sm:inline">{affiliation}</span>
+              {authUser.role === 'course_officer' &&
+                authUser.assignedCourseCodes &&
+                authUser.assignedCourseCodes.length > 0 && (
+                  <>
+                    <span aria-hidden="true" className="text-slate-300">·</span>
+                    <span className="font-mono text-xs font-medium text-[#0F2A4A]">
+                      วิชาที่รับผิดชอบ: {authUser.assignedCourseCodes.join(', ')}
+                    </span>
+                  </>
+                )}
+              {(role === 'faculty' || role === 'course_officer') && pendingCount > 0 && (
                 <>
                   <span aria-hidden="true" className="text-slate-300">·</span>
-                  <span className="font-mono text-xs font-medium text-[#0F2A4A]">
-                    วิชาที่รับผิดชอบ: {authUser.assignedCourseCodes.join(', ')}
+                  <span className="text-amber-700 font-medium tabular-nums">
+                    รอตรวจรับรอง E-Logbook {pendingCount} รายการ
                   </span>
                 </>
               )}
-            {(role === 'faculty' || role === 'course_officer') && pendingCount > 0 && (
-              <>
-                <span aria-hidden="true" className="text-slate-300">·</span>
-                <span className="text-amber-700 font-medium tabular-nums">
-                  รอตรวจรับรอง E-Logbook {pendingCount} รายการ
-                </span>
-              </>
-            )}
-            <span aria-hidden="true" className="text-slate-300">·</span>
-            <button
-              type="button"
-              onClick={() => setShowMatrix((prev) => !prev)}
-              className="text-xs font-medium text-[#0F2A4A] hover:underline cursor-pointer"
-            >
-              {showMatrix ? 'ซ่อนตารางสิทธิ์' : 'สิทธิ์เข้าถึงข้อมูล'}
-            </button>
-          </div>
+              <span aria-hidden="true" className="text-slate-300">·</span>
+              <button
+                type="button"
+                onClick={() => setShowMatrix((prev) => !prev)}
+                className="text-xs font-medium text-[#0F2A4A] hover:underline cursor-pointer"
+              >
+                {showMatrix ? 'ซ่อนตารางสิทธิ์' : 'สิทธิ์เข้าถึงข้อมูล'}
+              </button>
+            </div>
+          ) : (
+            <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-xs sm:text-sm text-slate-600">
+              <span className="inline-flex items-center gap-1.5 font-semibold text-[#0F2A4A]">
+                <Lock className="w-3.5 h-3.5 text-[#0D9488]" aria-hidden="true" />
+                ระบบจำกัดสิทธิ์ตามการเข้าสู่ระบบ (Login Required)
+              </span>
+              <span aria-hidden="true" className="text-slate-300 hidden sm:inline">·</span>
+              <span className="text-xs text-slate-500">
+                กรุณาเข้าสู่ระบบเพื่อปลดล็อกข้อมูลตามบทบาทของท่าน
+              </span>
+              <span aria-hidden="true" className="text-slate-300">·</span>
+              <button
+                type="button"
+                onClick={() => setShowMatrix((prev) => !prev)}
+                className="text-xs font-medium text-[#0F2A4A] hover:underline cursor-pointer"
+              >
+                {showMatrix ? 'ซ่อนตารางสิทธิ์' : 'ดูตารางระดับสิทธิ์'}
+              </button>
+            </div>
+          )}
 
           <div className="flex flex-wrap items-center gap-2 self-start xl:self-auto">
             <PWAInstallButton />
 
-            <button
-              type="button"
-              onClick={onOpenQuickSearch}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 min-h-[36px] text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200/80 border border-slate-200 rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer"
-            >
-              <Search className="w-3.5 h-3.5 text-slate-500" aria-hidden="true" />
-              <span>ค้นหาด่วน</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={onOpenSheetsSync}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 min-h-[36px] text-xs font-medium text-[#0F766E] bg-teal-50 hover:bg-teal-100/80 border border-teal-200 rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer"
-            >
-              <FileSpreadsheet className="w-3.5 h-3.5" aria-hidden="true" />
-              <span>ซิงค์ Sheet</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={onOpenStudentDirectory}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
-                isBackOfficeManager
-                  ? 'bg-[#0F2A4A] text-white border-[#0F2A4A] hover:bg-[#163B66]'
-                  : 'bg-white text-[#0F2A4A] border-slate-300 hover:bg-slate-50'
-              }`}
-            >
-              {isBackOfficeManager ? (
-                <Camera className="w-3.5 h-3.5" aria-hidden="true" />
-              ) : (
-                <Users className="w-3.5 h-3.5" aria-hidden="true" />
-              )}
-              <span>{isBackOfficeManager ? 'อัปโหลดรูปนักศึกษา' : 'ทำเนียบนักศึกษา'}</span>
-            </button>
-
-            {authUser ? (
+            {isAuthenticated && authUser ? (
               <>
+                <button
+                  type="button"
+                  onClick={onOpenQuickSearch}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 min-h-[36px] text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200/80 border border-slate-200 rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+                >
+                  <Search className="w-3.5 h-3.5 text-slate-500" aria-hidden="true" />
+                  <span>ค้นหาด่วน</span>
+                </button>
+
+                {canSyncSheets && (
+                  <button
+                    type="button"
+                    onClick={onOpenSheetsSync}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 min-h-[36px] text-xs font-medium text-[#0F766E] bg-teal-50 hover:bg-teal-100/80 border border-teal-200 rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+                  >
+                    <FileSpreadsheet className="w-3.5 h-3.5" aria-hidden="true" />
+                    <span>ซิงค์ Sheet</span>
+                  </button>
+                )}
+
+                {role !== 'student' && (
+                  <button
+                    type="button"
+                    onClick={onOpenStudentDirectory}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                      isBackOfficeManager
+                        ? 'bg-[#0F2A4A] text-white border-[#0F2A4A] hover:bg-[#163B66]'
+                        : 'bg-white text-[#0F2A4A] border-slate-300 hover:bg-slate-50'
+                    }`}
+                  >
+                    {isBackOfficeManager ? (
+                      <Camera className="w-3.5 h-3.5" aria-hidden="true" />
+                    ) : (
+                      <Users className="w-3.5 h-3.5" aria-hidden="true" />
+                    )}
+                    <span>{isBackOfficeManager ? 'อัปโหลดรูปนักศึกษา' : 'ทำเนียบนักศึกษา'}</span>
+                  </button>
+                )}
+
                 {isBackOfficeManager && (
                   <button
                     type="button"
@@ -154,7 +179,7 @@ export function WorkspaceBar({
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-[#0F766E] hover:bg-[#0D625C] rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer"
                   >
                     <UserCog className="w-3.5 h-3.5" aria-hidden="true" />
-                    <span>จัดการบัญชี (Username/Pass)</span>
+                    <span>จัดการสมาชิก (CRUD)</span>
                   </button>
                 )}
                 <button
@@ -178,7 +203,7 @@ export function WorkspaceBar({
               <button
                 type="button"
                 onClick={() => onOpenAuthModal('login')}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-[#0F766E] hover:bg-[#0D625C] rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-white bg-[#0F766E] hover:bg-[#0D625C] rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer"
               >
                 <LogIn className="w-3.5 h-3.5" aria-hidden="true" />
                 <span>เข้าสู่ระบบ (Username/Password)</span>
@@ -186,45 +211,6 @@ export function WorkspaceBar({
             )}
           </div>
         </div>
-
-        {/* Role Preview Switcher when browsing without fixed login */}
-        {!authUser && (
-          <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-200/80">
-            <span className="text-[11px] text-slate-500">
-              โหมดทดลองสลับบทบาท (Preview) · หากต้องการใช้บัญชีเฉพาะบุคคลหรือออก Username/Password ให้กด “เข้าสู่ระบบ”
-            </span>
-            <div
-              className="inline-flex items-center p-1 bg-slate-200/75 rounded-lg max-w-full overflow-x-auto"
-              role="group"
-              aria-label="สลับบทบาทและระดับการเข้าถึงข้อมูล"
-            >
-              {(
-                [
-                  { id: 'student', label: 'ระดับ 1: นักศึกษาแพทย์' },
-                  { id: 'faculty', label: 'ระดับ 2: อาจารย์แพทย์' },
-                  { id: 'course_officer', label: 'ระดับ 3A: นักวิชาการรายวิชา' },
-                  { id: 'admin', label: 'ระดับ 3B: แอดมิน/ประธานฯ' },
-                ] as const
-              ).map((item) => {
-                const active = role === item.id;
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => onChangeRole(item.id)}
-                    className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
-                      active
-                        ? 'bg-white text-[#0F2A4A] shadow-xs'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    {item.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
       </div>
 
       {showMatrix && (
@@ -264,7 +250,7 @@ export function WorkspaceBar({
                       { label: 'ตรวจรับรอง E-Logbook และอนุมัติแลกเวร / ใบลา', key: 'canApproveLogbook' },
                       { label: 'ติ๊กเลือกแบบประเมิน/หัวข้อรายข้อ และตั้งค่า Ward รายวิชา', key: 'canManageCourseBlueprints' },
                       { label: 'กำหนดสัดส่วน % รายวิชา และคำนวณตัดเกรด MPL', key: 'canConfigureGradingAndMpl' },
-                      { label: 'ออก Username / Password และจัดการบัญชีรายบุคคล', key: 'canManageAccounts' },
+                      { label: 'เพิ่ม/แก้ไข/ลบ สมาชิก และออก Username / Password (CRUD)', key: 'canManageAccounts' },
                     ] as const
                   ).map((row) => (
                     <tr key={row.key}>

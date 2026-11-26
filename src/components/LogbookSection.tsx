@@ -9,6 +9,7 @@ import {
   FileText,
   Plus,
   Printer,
+  QrCode,
   Search,
   Users,
 } from 'lucide-react';
@@ -35,6 +36,7 @@ interface LogbookSectionProps {
   peerReviewEntries: PeerReviewEntry[];
   approvedPeerReviewDomains: string[];
   onOpenNewLogbook: () => void;
+  onOpenFacultyQrGenerator?: () => void;
   onUpdateStatus: (id: string, status: LogbookStatus, feedback?: string) => void;
   onSubmitPeerReview: (entryId: string, feedback: PeerReviewFeedbackInput) => void;
   onTogglePeerReviewHelpful: (entryId: string, commentId: string) => void;
@@ -50,6 +52,7 @@ export function LogbookSection({
   peerReviewEntries,
   approvedPeerReviewDomains,
   onOpenNewLogbook,
+  onOpenFacultyQrGenerator,
   onUpdateStatus,
   onSubmitPeerReview,
   onTogglePeerReviewHelpful,
@@ -143,6 +146,16 @@ export function LogbookSection({
         <div className="flex flex-wrap items-center gap-2.5">
           {subView === 'logbook' && canExportOfficialReports && (
             <>
+              {onOpenFacultyQrGenerator && (
+                <button
+                  type="button"
+                  onClick={onOpenFacultyQrGenerator}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-medium text-white bg-[#091A32] hover:bg-[#0F2A4A] rounded-lg cursor-pointer whitespace-nowrap shrink-0"
+                >
+                  <QrCode className="w-4 h-4 text-[#2DD4BF]" aria-hidden="true" />
+                  <span>สร้าง QR หัตถการ (อาจารย์)</span>
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => setReportPreviewOpen(true)}

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   AlertTriangle,
   BedDouble,
@@ -27,6 +27,7 @@ import {
   ClinicalMilestoneBadge,
   ClinicalSkillMasteryItem,
   DutyShift,
+  FacultyGeneratedQrStation,
   LeaveRequest,
   ProcedureRole,
   SbarHandoffRecord,
@@ -43,6 +44,8 @@ import { StudentAvatar } from './StudentAvatar';
 import {
   BedsideQrPayload,
   BedsideReflectionInput,
+  ProcedureCheckInResult,
+  ProcedureQrPayload,
   QrCheckInResult,
   WardQrPayload,
   WardQrScannerModal,
@@ -57,7 +60,12 @@ interface CurriculumRosterSectionProps {
   departments: ClinicalDepartment[];
   shifts: DutyShift[];
   onCheckInShift: (shiftId: string) => void;
-  onQrCheckIn: (payload: WardQrPayload) => QrCheckInResult;
+  onQrCheckIn: (payload: WardQrPayload) => QrCheckInResult | null;
+  customQrStations?: FacultyGeneratedQrStation[];
+  externalScanPayload?: string | null;
+  onClearExternalScanPayload?: () => void;
+  onOpenFacultyQrGenerator?: (kind?: 'ward' | 'procedure') => void;
+  onProcedureQrCheckIn?: (payload: ProcedureQrPayload) => ProcedureCheckInResult | null;
   bedsideCheckIns: BedsideCheckInRecord[];
   onRecordBedsideCheckIn: (payload: BedsideQrPayload) => BedsideCheckInRecord;
   onSaveBedsideReflection: (
@@ -107,6 +115,11 @@ export function CurriculumRosterSection({
   shifts,
   onCheckInShift,
   onQrCheckIn,
+  customQrStations = [],
+  externalScanPayload,
+  onClearExternalScanPayload,
+  onOpenFacultyQrGenerator,
+  onProcedureQrCheckIn,
   bedsideCheckIns,
   onRecordBedsideCheckIn,
   onSaveBedsideReflection,
@@ -130,6 +143,12 @@ export function CurriculumRosterSection({
   const [shiftScope, setShiftScope] = useState<'all' | 'mine'>('all');
   const [shiftDeptFilter, setShiftDeptFilter] = useState<string>('ทั้งหมด');
   const [qrModalOpen, setQrModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (externalScanPayload) {
+      setQrModalOpen(true);
+    }
+  }, [externalScanPayload]);
   const [swapModalShift, setSwapModalShift] = useState<DutyShift | null>(null);
   const [swapReason, setSwapReason] = useState('');
   const [editingBedsideRecord, setEditingBedsideRecord] =
@@ -382,6 +401,18 @@ export function CurriculumRosterSection({
               <QrCode className="w-4 h-4" aria-hidden="true" />
               <span>สแกน QR เข้าเวร / ข้างเตียงผู้ป่วย</span>
             </button>
+
+            {(role === 'faculty' || role === 'course_officer' || role === 'admin') &&
+              onOpenFacultyQrGenerator && (
+                <button
+                  type="button"
+                  onClick={() => onOpenFacultyQrGenerator('ward')}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium text-white bg-[#091A32] hover:bg-[#0F2A4A] rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer shadow-xs"
+                >
+                  <QrCode className="w-4 h-4 text-[#2DD4BF]" aria-hidden="true" />
+                  <span>สร้าง QR เช็กอิน (อาจารย์)</span>
+                </button>
+              )}
 
             {/* Calendar vs Table View Switcher */}
             <div className="inline-flex items-center p-1 bg-slate-100 border border-slate-200 rounded-lg">
@@ -1613,8 +1644,17 @@ export function CurriculumRosterSection({
         role={role}
         currentStudentName={currentStudentName}
         shifts={shifts}
+        customQrStations={customQrStations}
+        initialScanRawPayload={externalScanPayload}
+        onClearInitialScanPayload={onClearExternalScanPayload}
+        onOpenFacultyQrGenerator={
+          onOpenFacultyQrGenerator
+            ? () => onOpenFacultyQrGenerator('ward')
+            : undefined
+        }
         onRecordQrCheckIn={onQrCheckIn}
         onRecordBedsideCheckIn={onRecordBedsideCheckIn}
+        onRecordProcedureCheckIn={onProcedureQrCheckIn}
         onSaveBedsideReflection={onSaveBedsideReflection}
       />
 

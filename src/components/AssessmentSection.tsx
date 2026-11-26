@@ -17,6 +17,7 @@ import { CourseEvaluationConfigPanel } from './CourseEvaluationConfigPanel';
 import { FacultyEvaluationForms } from './FacultyEvaluationForms';
 import { evaluateStudentGrade, MplGradingStudio } from './MplGradingStudio';
 import { PreceptorFeedbackPanel } from './PreceptorFeedbackPanel';
+import { ADMIN_OFFICER_ROLES, RoleAccessGuard, hasRoleAccess } from './RoleAccessGuard';
 import { StudentAvatar } from './StudentAvatar';
 import { StudentScoreChart } from './StudentScoreChart';
 
@@ -185,7 +186,9 @@ export function AssessmentSection({
               ] as const)
             : ([
                 { id: 'forms', label: 'แบบประเมินอาจารย์ (ตามรายวิชา)' },
-                { id: 'course_blueprint', label: 'ตั้งค่าแบบฟอร์ม & หัวข้อรายวิชา' },
+                ...(hasRoleAccess(role, true, ADMIN_OFFICER_ROLES)
+                  ? ([{ id: 'course_blueprint', label: 'ตั้งค่าแบบฟอร์ม & หัวข้อรายวิชา' }] as const)
+                  : []),
                 { id: 'mpl_grading', label: 'ตัดเกรด % และเกณฑ์ MPL' },
                 { id: 'osce_epa', label: 'OSCE / EPA และผลการเรียน' },
                 { id: 'preceptor_feedback', label: 'ผลประเมินการสอน (QA)' },
@@ -476,13 +479,22 @@ export function AssessmentSection({
       )}
 
       {subTab === 'course_blueprint' && (
-        <CourseEvaluationConfigPanel
+        <RoleAccessGuard
           role={role}
-          assignedCourseCodes={assignedCourseCodes}
-          authenticatedDisplayName={authenticatedDisplayName}
-          configs={gradingConfigs}
-          onUpdateConfig={onUpdateGradingConfig}
-        />
+          isAuthenticated={true}
+          allowedRoles={ADMIN_OFFICER_ROLES}
+          showLockedNotice={true}
+          restrictedTitle="จำกัดสิทธิ์การตั้งค่าโครงสร้างแบบประเมินและเกณฑ์เกรด"
+          restrictedDescription="เฉพาะแอดมิน (ระดับ 3B) หรือนักวิชาการประจำรายวิชา (ระดับ 3A) เท่านั้นที่สามารถแก้ไขแบบประเมินและหัวข้อคิดเกรดได้"
+        >
+          <CourseEvaluationConfigPanel
+            role={role}
+            assignedCourseCodes={assignedCourseCodes}
+            authenticatedDisplayName={authenticatedDisplayName}
+            configs={gradingConfigs}
+            onUpdateConfig={onUpdateGradingConfig}
+          />
+        </RoleAccessGuard>
       )}
 
       {subTab === 'mpl_grading' && (

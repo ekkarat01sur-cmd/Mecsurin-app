@@ -6,8 +6,11 @@ import {
   KeyRound,
   Lock,
   LogIn,
+  Pencil,
+  Save,
   Search,
   ShieldCheck,
+  Trash2,
   UserPlus,
   Users,
   X,
@@ -85,9 +88,22 @@ export function AuthPortalModal({
   const [newUserDisplayName, setNewUserDisplayName] = useState('');
   const [newUserRole, setNewUserRole] = useState<UserRole>('student');
   const [newUserAffiliation, setNewUserAffiliation] = useState('');
+  const [newUserStudentId, setNewUserStudentId] = useState('');
+  const [newUserCourseCodes, setNewUserCourseCodes] = useState('');
   const [manageMessage, setManageMessage] = useState<string | null>(null);
   const [manageError, setManageError] = useState<string | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+
+  // Edit / Delete Member (CRUD)
+  const [editingUsername, setEditingUsername] = useState<string | null>(null);
+  const [editDisplayName, setEditDisplayName] = useState('');
+  const [editRole, setEditRole] = useState<UserRole>('student');
+  const [editAffiliation, setEditAffiliation] = useState('');
+  const [editStudentId, setEditStudentId] = useState('');
+  const [editCourseCodes, setEditCourseCodes] = useState('');
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [confirmDeleteUsername, setConfirmDeleteUsername] = useState<string | null>(null);
+  const [deletingUsername, setDeletingUsername] = useState<string | null>(null);
 
   // Change own password
   const [currentPassword, setCurrentPassword] = useState('');
@@ -297,16 +313,143 @@ export function AuthPortalModal({
 
   const handleCreateCustomAccount = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!customIssueUsername.trim()) return;
-    await handleIssueCredential(customIssueUsername.trim(), customIssuePassword.trim(), {
-      displayName: newUserDisplayName.trim() || customIssueUsername.trim(),
-      role: newUserRole,
-      affiliation: newUserAffiliation.trim() || undefined,
-    });
-    setCustomIssueUsername('');
-    setCustomIssuePassword('');
-    setNewUserDisplayName('');
-    setNewUserAffiliation('');
+    if (!authToken || !customIssueUsername.trim()) return;
+    setManageError(null);
+    setManageMessage(null);
+    const parsedCourses = newUserCourseCodes
+      .split(',')
+      .map((c) => c.trim().toUpperCase())
+      .filter(Boolean);
+
+    try {
+      const res = await fetch('/api/auth/users', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          username: customIssueUsername.trim(),
+          customPassword: customIssuePassword.trim() || undefined,
+          displayName: newUserDisplayName.trim() || customIssueUsername.trim(),
+          role: newUserRole,
+          affiliation: newUserAffiliation.trim() || undefined,
+          studentId: newUserRole === 'student' ? newUserStudentId.trim() || undefined : undefined,
+          assignedCourseCodes: parsedCourses.length > 0 ? parsedCourses : undefined,
+        }),
+      });
+      const data = (await res.json()) as {
+        user?: AuthUserProfile;
+        issuedCredentials?: IssuedCredentialSlip;
+        error?: string;
+      };
+      if (!res.ok || !data.issuedCredentials) {
+        setManageError(data.error ?? 'ไม่สามารถสร้างบัญชีสมาชิกได้');
+        return;
+      }
+      setIssuedSlips((prev) => [
+        data.issuedCredentials!,
+        ...prev.filter((s) => s.username !== data.issuedCredentials!.username),
+      ]);
+      setManageMessage(`สร้างบัญชีสมาชิก ${data.issuedCredentials.displayName} (@${data.issuedCredentials.username}) เรียบร้อยแล้ว`);
+      setCustomIssueUsername('');
+      setCustomIssuePassword('');
+      setNewUserDisplayName('');
+      setNewUserAffiliation('');
+      setNewUserStudentId('');
+      setNewUserCourseCodes('');
+      await loadManagedUsers(authToken);
+      await loadBootstrapStatus();
+    } catch {
+      setManageError('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
+    }
+  };
+
+  const handleStartEditUser = (u: AuthUserProfile) => {
+    setConfirmDeleteUsername(null);
+    setManageError(null);
+    setManageMessage(null);
+    setEditingUsername(u.username);
+    setEditDisplayName(u.displayName);
+    setEditRole(u.role);
+    setEditAffiliation(u.affiliation);
+    setEditStudentId(u.studentId ?? '');
+    setEditCourseCodes((u.assignedCourseCodes ?? []).join(', '));
+  };
+
+  const handleSaveEditUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!authToken || !editingUsername) return;
+    setSavingEdit(true);
+    setManageError(null);
+    setManageMessage(null);
+    const parsedCourses = editCourseCodes
+      .split(',')
+      .map((c) => c.trim().toUpperCase())
+      .filter(Boolean);
+
+    try {
+      const res = await fetch(`/api/auth/users/${encodeURIComponent(editingUsername)}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          displayName: editDisplayName.trim(),
+          role: editRole,
+          affiliation: editAffiliation.trim(),
+          studentId: editRole === 'student' ? editStudentId.trim() : '',
+          assignedCourseCodes: parsedCourses,
+        }),
+      });
+      const data = (await res.json()) as { user?: AuthUserProfile; error?: string };
+      if (!res.ok || !data.user) {
+        setManageError(data.error ?? 'ไม่สามารถอัปเดตข้อมูลสมาชิกได้');
+        return;
+      }
+      if (authUser && data.user.username === authUser.username) {
+        onUpdatedProfile(data.user);
+      }
+      setManageMessage(`อัปเดตข้อมูลสมาชิก ${data.user.displayName} (@${data.user.username}) เรียบร้อยแล้ว`);
+      setEditingUsername(null);
+      await loadManagedUsers(authToken);
+      await loadBootstrapStatus();
+    } catch {
+      setManageError('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const handleDeleteUser = async (targetUsername: string) => {
+    if (!authToken) return;
+    setDeletingUsername(targetUsername);
+    setManageError(null);
+    setManageMessage(null);
+    try {
+      const res = await fetch(`/api/auth/users/${encodeURIComponent(targetUsername)}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      const data = (await res.json()) as { ok?: boolean; error?: string };
+      if (!res.ok) {
+        setManageError(data.error ?? 'ไม่สามารถลบสมาชิกได้');
+        return;
+      }
+      setConfirmDeleteUsername(null);
+      if (editingUsername === targetUsername) {
+        setEditingUsername(null);
+      }
+      setIssuedSlips((prev) => prev.filter((s) => s.username !== targetUsername));
+      setManageMessage(`ลบบัญชีสมาชิก @${targetUsername} ออกจากระบบแล้ว`);
+      await loadManagedUsers(authToken);
+      await loadBootstrapStatus();
+    } catch {
+      setManageError('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
+    } finally {
+      setDeletingUsername(null);
+    }
   };
 
   const handleChangeOwnPassword = async (e: React.FormEvent) => {
@@ -740,54 +883,82 @@ export function AuthPortalModal({
                 </div>
               )}
 
-              {/* Add New Account Form */}
+              {/* Create New Member Form (CRUD: Create) */}
               <form
                 onSubmit={handleCreateCustomAccount}
-                className="border border-slate-200 rounded-xl p-4 space-y-3"
+                className="border border-slate-200 rounded-xl p-4 space-y-3 bg-white"
               >
                 <div className="text-xs font-semibold text-slate-900 flex items-center gap-1.5">
                   <UserPlus className="w-4 h-4 text-[#0F2A4A]" aria-hidden="true" />
-                  เพิ่มบัญชีผู้ใช้งานใหม่ / กำหนดรหัสผ่านเอง
+                  เพิ่มสมาชิกใหม่ (Create Member)
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
                   <input
                     type="text"
                     required
                     value={customIssueUsername}
                     onChange={(e) => setCustomIssueUsername(e.target.value)}
                     placeholder="Username (เช่น dr_wichai)"
-                    className="px-3 py-1.5 text-xs font-mono bg-white border border-slate-300 rounded-lg"
+                    className="px-3 py-2 text-xs font-mono bg-white border border-slate-300 rounded-lg"
                   />
                   <input
                     type="text"
+                    required
                     value={newUserDisplayName}
                     onChange={(e) => setNewUserDisplayName(e.target.value)}
-                    placeholder="ชื่อ-สกุล"
-                    className="px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg"
+                    placeholder="ชื่อ-สกุล (เช่น นพ. วิชัย สุขใจ)"
+                    className="px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg"
                   />
                   <select
                     value={newUserRole}
                     onChange={(e) => setNewUserRole(e.target.value as UserRole)}
-                    className="px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg"
+                    className="px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg"
                   >
-                    <option value="student">นักศึกษาแพทย์</option>
-                    <option value="faculty">อาจารย์แพทย์</option>
+                    <option value="student">ระดับ 1: นักศึกษาแพทย์</option>
+                    <option value="faculty">ระดับ 2: อาจารย์แพทย์</option>
                     {authUser?.role === 'admin' && (
-                      <option value="course_officer">นักวิชาการประจำรายวิชา</option>
+                      <>
+                        <option value="course_officer">ระดับ 3A: นักวิชาการประจำรายวิชา</option>
+                        <option value="admin">ระดับ 3B: แอดมิน / ประธานฯ</option>
+                      </>
                     )}
                   </select>
                   <input
                     type="text"
+                    value={newUserAffiliation}
+                    onChange={(e) => setNewUserAffiliation(e.target.value)}
+                    placeholder="สังกัด / ชั้นปี (เช่น กลุ่มงานอายุรศาสตร์)"
+                    className="px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg"
+                  />
+                  {newUserRole === 'student' ? (
+                    <input
+                      type="text"
+                      value={newUserStudentId}
+                      onChange={(e) => setNewUserStudentId(e.target.value)}
+                      placeholder="รหัสนักศึกษา (เช่น 66104099)"
+                      className="px-3 py-2 text-xs font-mono bg-white border border-slate-300 rounded-lg"
+                    />
+                  ) : (
+                    <input
+                      type="text"
+                      value={newUserCourseCodes}
+                      onChange={(e) => setNewUserCourseCodes(e.target.value)}
+                      placeholder="รหัสวิชาที่รับผิดชอบ (คั่นด้วย ,)"
+                      className="px-3 py-2 text-xs font-mono bg-white border border-slate-300 rounded-lg"
+                    />
+                  )}
+                  <input
+                    type="text"
                     value={customIssuePassword}
                     onChange={(e) => setCustomIssuePassword(e.target.value)}
-                    placeholder="รหัสผ่าน (เว้นว่างเพื่อสุ่ม)"
-                    className="px-3 py-1.5 text-xs font-mono bg-white border border-slate-300 rounded-lg"
+                    placeholder="รหัสผ่าน (>=8 ตัว หรือเว้นว่างเพื่อสุ่ม)"
+                    className="px-3 py-2 text-xs font-mono bg-white border border-slate-300 rounded-lg sm:col-span-2"
                   />
                   <button
                     type="submit"
-                    className="px-3 py-1.5 text-xs font-medium text-white bg-[#0F2A4A] rounded-lg hover:bg-[#163B66] cursor-pointer whitespace-nowrap"
+                    className="px-3 py-2 text-xs font-semibold text-white bg-[#0F2A4A] rounded-lg hover:bg-[#163B66] cursor-pointer whitespace-nowrap"
                   >
-                    สร้างและออกรหัส
+                    เพิ่มสมาชิกและออกรหัส
                   </button>
                 </div>
               </form>
@@ -821,39 +992,173 @@ export function AuthPortalModal({
                   </select>
                 </div>
 
-                <div className="divide-y divide-slate-200 max-h-[260px] overflow-y-auto">
-                  {filteredManagedUsers.map((u) => (
-                    <div
-                      key={u.username}
-                      className="px-4 py-2.5 flex items-center justify-between gap-3 text-xs"
-                    >
-                      <div className="min-w-0">
-                        <div className="font-semibold text-slate-900 truncate">
-                          {u.displayName}{' '}
-                          <span className="font-mono text-[#0F2A4A]">({u.username})</span>
+                <div className="divide-y divide-slate-200 max-h-[340px] overflow-y-auto">
+                  {filteredManagedUsers.map((u) => {
+                    const isEditing = editingUsername === u.username;
+                    const isConfirmingDelete = confirmDeleteUsername === u.username;
+                    const isSelf = authUser?.username === u.username;
+
+                    return (
+                      <div key={u.username} className="px-4 py-3 text-xs space-y-2.5">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                          <div className="min-w-0">
+                            <div className="font-semibold text-slate-900 truncate">
+                              {u.displayName}{' '}
+                              <span className="font-mono text-[#0F766E]">@{u.username}</span>
+                              {u.studentId && (
+                                <span className="ml-2 font-mono text-[11px] text-slate-500">
+                                  รหัส {u.studentId}
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-[11px] text-slate-500 truncate mt-0.5">
+                              {ROLE_LABELS[u.role]} · {u.affiliation}
+                              {u.assignedCourseCodes && u.assignedCourseCodes.length > 0 && (
+                                <span className="font-mono text-[#0F2A4A]">
+                                  {' '}· วิชา: {u.assignedCourseCodes.join(', ')}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-2 shrink-0">
+                            <span
+                              className={`text-[11px] font-medium ${
+                                u.hasPasswordSet ? 'text-emerald-700' : 'text-amber-700'
+                              }`}
+                            >
+                              {u.hasPasswordSet ? 'มีรหัสผ่านแล้ว' : 'ยังไม่ตั้งรหัส'}
+                            </span>
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                isEditing ? setEditingUsername(null) : handleStartEditUser(u)
+                              }
+                              className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-md cursor-pointer whitespace-nowrap"
+                            >
+                              <Pencil className="w-3 h-3" aria-hidden="true" />
+                              <span>{isEditing ? 'ปิดแก้ไข' : 'แก้ไข'}</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => void handleIssueCredential(u.username)}
+                              className="px-2.5 py-1 text-xs font-medium text-[#0F2A4A] bg-slate-100 hover:bg-slate-200 rounded-md cursor-pointer whitespace-nowrap"
+                            >
+                              {u.hasPasswordSet ? 'รีเซ็ตรหัสผ่าน' : 'ออกรหัสผ่าน'}
+                            </button>
+
+                            {!isSelf && (
+                              isConfirmingDelete ? (
+                                <div className="inline-flex items-center gap-1">
+                                  <button
+                                    type="button"
+                                    disabled={deletingUsername === u.username}
+                                    onClick={() => void handleDeleteUser(u.username)}
+                                    className="px-2.5 py-1 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-700 rounded-md cursor-pointer whitespace-nowrap disabled:opacity-60"
+                                  >
+                                    {deletingUsername === u.username ? 'กำลังลบ...' : 'ยืนยันลบ'}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setConfirmDeleteUsername(null)}
+                                    className="px-2 py-1 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-md cursor-pointer whitespace-nowrap"
+                                  >
+                                    ยกเลิก
+                                  </button>
+                                </div>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEditingUsername(null);
+                                    setConfirmDeleteUsername(u.username);
+                                  }}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-rose-700 bg-rose-50 border border-rose-200 hover:bg-rose-100 rounded-md cursor-pointer whitespace-nowrap"
+                                >
+                                  <Trash2 className="w-3 h-3" aria-hidden="true" />
+                                  <span>ลบ</span>
+                                </button>
+                              )
+                            )}
+                          </div>
                         </div>
-                        <div className="text-[11px] text-slate-500 truncate">
-                          {ROLE_LABELS[u.role]} · {u.affiliation}
-                        </div>
+
+                        {isEditing && (
+                          <form
+                            onSubmit={handleSaveEditUser}
+                            className="p-3 bg-slate-50 border border-slate-200 rounded-lg grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2"
+                          >
+                            <input
+                              type="text"
+                              required
+                              value={editDisplayName}
+                              onChange={(e) => setEditDisplayName(e.target.value)}
+                              placeholder="ชื่อ-สกุล"
+                              className="px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded-md"
+                            />
+                            <select
+                              value={editRole}
+                              disabled={isSelf}
+                              onChange={(e) => setEditRole(e.target.value as UserRole)}
+                              className="px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded-md disabled:opacity-60"
+                            >
+                              <option value="student">ระดับ 1: นักศึกษาแพทย์</option>
+                              <option value="faculty">ระดับ 2: อาจารย์แพทย์</option>
+                              {authUser?.role === 'admin' && (
+                                <>
+                                  <option value="course_officer">ระดับ 3A: นักวิชาการรายวิชา</option>
+                                  <option value="admin">ระดับ 3B: แอดมิน / ประธานฯ</option>
+                                </>
+                              )}
+                            </select>
+                            <input
+                              type="text"
+                              value={editAffiliation}
+                              onChange={(e) => setEditAffiliation(e.target.value)}
+                              placeholder="สังกัด / ชั้นปี"
+                              className="px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded-md"
+                            />
+                            {editRole === 'student' ? (
+                              <input
+                                type="text"
+                                value={editStudentId}
+                                onChange={(e) => setEditStudentId(e.target.value)}
+                                placeholder="รหัสนักศึกษา"
+                                className="px-2.5 py-1.5 text-xs font-mono bg-white border border-slate-300 rounded-md"
+                              />
+                            ) : (
+                              <input
+                                type="text"
+                                value={editCourseCodes}
+                                onChange={(e) => setEditCourseCodes(e.target.value)}
+                                placeholder="รหัสวิชา (เช่น SUR-MED-401)"
+                                className="px-2.5 py-1.5 text-xs font-mono bg-white border border-slate-300 rounded-md"
+                              />
+                            )}
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                type="submit"
+                                disabled={savingEdit}
+                                className="inline-flex items-center justify-center gap-1 flex-1 px-3 py-1.5 text-xs font-semibold text-white bg-[#0D9488] hover:bg-[#0F766E] rounded-md cursor-pointer whitespace-nowrap disabled:opacity-60"
+                              >
+                                <Save className="w-3.5 h-3.5" aria-hidden="true" />
+                                <span>{savingEdit ? 'กำลังบันทึก...' : 'บันทึก'}</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setEditingUsername(null)}
+                                className="px-2.5 py-1.5 text-xs font-medium text-slate-600 bg-white border border-slate-300 hover:bg-slate-100 rounded-md cursor-pointer"
+                              >
+                                ยกเลิก
+                              </button>
+                            </div>
+                          </form>
+                        )}
                       </div>
-                      <div className="flex items-center gap-3 shrink-0">
-                        <span
-                          className={`text-[11px] font-medium ${
-                            u.hasPasswordSet ? 'text-emerald-700' : 'text-amber-700'
-                          }`}
-                        >
-                          {u.hasPasswordSet ? 'มีรหัสผ่านแล้ว' : 'ยังไม่ตั้งรหัส'}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => void handleIssueCredential(u.username)}
-                          className="px-2.5 py-1 text-xs font-medium text-[#0F2A4A] bg-slate-100 hover:bg-slate-200 rounded-md cursor-pointer whitespace-nowrap"
-                        >
-                          {u.hasPasswordSet ? 'รีเซ็ตรหัสผ่าน' : 'ออกรหัสผ่าน'}
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             </div>

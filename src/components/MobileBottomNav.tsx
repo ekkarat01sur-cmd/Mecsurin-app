@@ -9,6 +9,7 @@ import { ActiveTab } from '../types/medicalSchool';
 
 interface MobileBottomNavProps {
   activeTab: ActiveTab;
+  isAuthenticated?: boolean;
   onSelectTab: (tab: ActiveTab) => void;
 }
 
@@ -26,8 +27,11 @@ const MOBILE_TABS: Array<{
 
 export function MobileBottomNav({
   activeTab,
+  isAuthenticated = true,
   onSelectTab,
 }: MobileBottomNavProps) {
+  if (!isAuthenticated) return null;
+
   const handleSelect = (tab: ActiveTab) => {
     onSelectTab(tab);
     window.scrollTo({ top: 0, behavior: 'smooth' });

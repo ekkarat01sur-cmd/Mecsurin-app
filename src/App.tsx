@@ -11,6 +11,7 @@ import {
   DutyShift,
   EpaMilestone,
   FacultyFormSubmission,
+  FacultyGeneratedQrStation,
   LearningStreakState,
   LeaveRequest,
   LogbookEntry,
@@ -75,6 +76,12 @@ import { LogbookModal } from './components/LogbookModal';
 import { QuickSearchModal } from './components/QuickSearchModal';
 import { StudentDirectoryModal } from './components/StudentDirectoryModal';
 import { AuthPortalModal } from './components/AuthPortalModal';
+import { PortalAuthGate } from './components/PortalAuthGate';
+import {
+  ADMIN_OFFICER_ROLES,
+  RoleAccessGuard,
+  hasRoleAccess,
+} from './components/RoleAccessGuard';
 import {
   GoogleSheetsSyncModal,
   PortalSyncPayload,
@@ -82,13 +89,52 @@ import {
 import {
   BedsideQrPayload,
   BedsideReflectionInput,
+  ProcedureCheckInResult,
+  ProcedureQrPayload,
   QrCheckInResult,
   WardQrPayload,
 } from './components/WardQrScannerModal';
+import { FacultyQrGeneratorModal } from './components/FacultyQrGeneratorModal';
+import { serializeFacultyStationQr } from './utils/qrPayloads';
 import { Footer } from './components/Footer';
 import { MobileBottomNav } from './components/MobileBottomNav';
 import { OfflineBanner } from './components/OfflineBanner';
 import { computeActiveStudentBadges } from './utils/clinicalBadges';
+
+const STAFF_QR_ROLES: readonly UserRole[] = ['faculty', 'course_officer', 'admin'];
+
+const INITIAL_FACULTY_QR_STATIONS: FacultyGeneratedQrStation[] = [
+  {
+    id: 'fq-seed-ward-1',
+    code: 'WARD-SUR1M1',
+    kind: 'ward',
+    department: 'กลุ่มงานอายุรศาสตร์',
+    wardOrUnit: 'หอผู้ป่วยอายุรกรรมชาย 1',
+    shiftType: 'Ward Round เช้า',
+    note: 'ป้าย QR หน้าเคาน์เตอร์พยาบาล อาคารเฉลิมพระเกียรติ ชั้น 4',
+    supervisingStaff: 'นพ.เอกรัตน์ วัฒนสุรินทร์',
+    createdBy: 'นพ.เอกรัตน์ วัฒนสุรินทร์',
+    createdAt: '08:00 น. · 24 พ.ย. 2569',
+    isActive: true,
+    checkInCount: 4,
+  },
+  {
+    id: 'fq-seed-proc-1',
+    code: 'PROC-LP742A',
+    kind: 'procedure',
+    department: 'กลุ่มงานอายุรศาสตร์',
+    wardOrUnit: 'หอผู้ป่วยอายุรกรรมชาย 1',
+    procedureName: 'การเจาะหลัง (Lumbar Puncture)',
+    clinicalSetting: 'IPD',
+    defaultRole: 'Perform',
+    note: 'ห้องหัตถการอายุรกรรม ชั้น 4',
+    supervisingStaff: 'นพ.เอกรัตน์ วัฒนสุรินทร์',
+    createdBy: 'นพ.เอกรัตน์ วัฒนสุรินทร์',
+    createdAt: '09:15 น. · 24 พ.ย. 2569',
+    isActive: true,
+    checkInCount: 2,
+  },
+];
 
 const STORAGE_KEY = 'surin_mec_portal_v1';
 
@@ -150,7 +196,6 @@ function buildInitialLearningStreak(): LearningStreakState {
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('overview');
-  const [role, setRole] = useState<UserRole>('student');
   // Session token stays strictly in React memory (never persisted to localStorage)
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [authUser, setAuthUser] = useState<AuthUserProfile | null>(null);
@@ -161,7 +206,20 @@ export default function App() {
   const [directoryModalOpen, setDirectoryModalOpen] = useState(false);
   const [quickSearchOpen, setQuickSearchOpen] = useState(false);
   const [sheetsSyncModalOpen, setSheetsSyncModalOpen] = useState(false);
+  const [qrGeneratorOpen, setQrGeneratorOpen] = useState(false);
+  const [qrGeneratorKind, setQrGeneratorKind] = useState<'ward' | 'procedure'>('ward');
+  const [externalScanPayload, setExternalScanPayload] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const [customQrStations, setCustomQrStations] = useState<FacultyGeneratedQrStation[]>(() => {
+    const saved = loadSavedState<FacultyGeneratedQrStation[]>(
+      'customQrStations',
+      INITIAL_FACULTY_QR_STATIONS
+    );
+    return Array.isArray(saved) && saved.length > 0
+      ? saved
+      : INITIAL_FACULTY_QR_STATIONS;
+  });
 
   const [conferences, setConferences] = useState<ConferenceEvent[]>(() =>
     loadSavedState('conferences', INITIAL_CONFERENCES)
@@ -388,6 +446,7 @@ export default function App() {
           learningStreak,
           approvedPeerReviewDomains,
           peerReviewEntries,
+          customQrStations,
         })
       );
     } catch {
@@ -417,6 +476,7 @@ export default function App() {
     learningStreak,
     approvedPeerReviewDomains,
     peerReviewEntries,
+    customQrStations,
   ]);
 
   const showToast = (msg: string) => {
@@ -426,7 +486,8 @@ export default function App() {
     }, 3200);
   };
 
-  const activeRole: UserRole = authUser ? authUser.role : role;
+  const isAuthenticated = Boolean(authUser);
+  const activeRole: UserRole = authUser ? authUser.role : 'student';
   const activeStudentId = authUser?.studentId ?? '64104218';
   const activeStudentName =
     authUser?.role === 'student'
@@ -436,7 +497,75 @@ export default function App() {
   const authenticatedDisplayName = authUser?.displayName;
   const assignedCourseCodes = authUser?.assignedCourseCodes;
 
+  const isStudentRole = authUser?.role === 'student';
+  const scopedStudentScores = useMemo(
+    () =>
+      isStudentRole
+        ? studentScores.filter((s) => s.studentId === activeStudentId)
+        : studentScores,
+    [isStudentRole, studentScores, activeStudentId]
+  );
+  const scopedEvaluations = useMemo(
+    () =>
+      isStudentRole
+        ? evaluations.filter((e) => e.studentName === activeStudentName)
+        : evaluations,
+    [isStudentRole, evaluations, activeStudentName]
+  );
+  const scopedFacultySubmissions = useMemo(
+    () =>
+      isStudentRole
+        ? facultySubmissions.filter((f) => f.studentId === activeStudentId)
+        : facultySubmissions,
+    [isStudentRole, facultySubmissions, activeStudentId]
+  );
+  const scopedLeaveRequests = useMemo(
+    () =>
+      isStudentRole
+        ? leaveRequests.filter((l) => l.studentId === activeStudentId)
+        : leaveRequests,
+    [isStudentRole, leaveRequests, activeStudentId]
+  );
+  const scopedBedsideCheckIns = useMemo(
+    () =>
+      isStudentRole
+        ? bedsideCheckIns.filter((b) => b.studentName === activeStudentName)
+        : bedsideCheckIns,
+    [isStudentRole, bedsideCheckIns, activeStudentName]
+  );
+
+  const canManageAdminOrCourseOfficer = hasRoleAccess(
+    activeRole,
+    isAuthenticated,
+    ADMIN_OFFICER_ROLES
+  );
+
+  const runWithRbac = <Args extends unknown[]>(
+    allowedRoles: readonly UserRole[],
+    actionLabel: string,
+    handler: (...args: Args) => void
+  ) => {
+    return (...args: Args) => {
+      if (!authUser || !hasRoleAccess(authUser.role, true, allowedRoles)) {
+        showToast(
+          `จำกัดสิทธิ์การเข้าถึง: เฉพาะแอดมิน (ระดับ 3B) หรือนักวิชาการประจำรายวิชา (ระดับ 3A) จึงจะ${actionLabel}ได้`
+        );
+        return;
+      }
+      handler(...args);
+    };
+  };
+
   const handleOpenAuthModal = (tab: 'login' | 'manage' | 'password') => {
+    if (!authUser) {
+      setAuthModalTab('login');
+      setAuthModalOpen(true);
+      return;
+    }
+    if (tab === 'manage' && !hasRoleAccess(authUser.role, true, ADMIN_OFFICER_ROLES)) {
+      showToast('จำกัดสิทธิ์: เฉพาะแอดมินหรือนักวิชาการประจำรายวิชาเท่านั้นที่จัดการสมาชิกได้');
+      return;
+    }
     setAuthModalTab(tab);
     setAuthModalOpen(true);
   };
@@ -444,7 +573,8 @@ export default function App() {
   const handleAuthenticated = (token: string, user: AuthUserProfile) => {
     setAuthToken(token);
     setAuthUser(user);
-    setRole(user.role);
+    setActiveTab('overview');
+    setAuthModalOpen(false);
     showToast(`เข้าสู่ระบบในนาม ${user.displayName} (@${user.username}) สำเร็จ`);
   };
 
@@ -461,6 +591,13 @@ export default function App() {
     }
     setAuthToken(null);
     setAuthUser(null);
+    setLogbookModalOpen(false);
+    setDirectoryModalOpen(false);
+    setQuickSearchOpen(false);
+    setSheetsSyncModalOpen(false);
+    setQrGeneratorOpen(false);
+    setExternalScanPayload(null);
+    setActiveTab('overview');
     showToast('ออกจากระบบเรียบร้อยแล้ว');
   };
 
@@ -506,7 +643,60 @@ export default function App() {
     showToast(`บันทึกเวลาขึ้นเวรหอผู้ป่วย (${timeStr}) เรียบร้อยแล้ว`);
   };
 
-  const handleQrCheckIn = (payload: WardQrPayload): QrCheckInResult => {
+  const handleOpenFacultyQrGenerator = (kind: 'ward' | 'procedure' = 'ward') => {
+    if (!authUser || !hasRoleAccess(authUser.role, true, STAFF_QR_ROLES)) {
+      showToast('จำกัดสิทธิ์: เฉพาะอาจารย์แพทย์ นักวิชาการ และแอดมินจึงจะสร้าง QR Code ได้');
+      return;
+    }
+    setQrGeneratorKind(kind);
+    setQrGeneratorOpen(true);
+  };
+
+  const handleCreateQrStation = (station: FacultyGeneratedQrStation) => {
+    setCustomQrStations((prev) => [station, ...prev]);
+    showToast(
+      station.kind === 'procedure'
+        ? `สร้าง QR หัตถการ ${station.code} เรียบร้อยแล้ว`
+        : `สร้าง QR หอผู้ป่วย ${station.code} เรียบร้อยแล้ว`
+    );
+  };
+
+  const handleToggleQrStationActive = (stationId: string) => {
+    setCustomQrStations((prev) =>
+      prev.map((st) => {
+        if (st.id !== stationId) return st;
+        const nextActive = !st.isActive;
+        showToast(
+          nextActive
+            ? `เปิดใช้งาน QR ${st.code} แล้ว`
+            : `ปิดใช้งานชั่วคราว QR ${st.code} แล้ว`
+        );
+        return { ...st, isActive: nextActive };
+      })
+    );
+  };
+
+  const handleDeleteQrStation = (stationId: string) => {
+    setCustomQrStations((prev) => prev.filter((st) => st.id !== stationId));
+    showToast('ลบรายการ QR Code ออกจากระบบแล้ว');
+  };
+
+  const handleQrCheckIn = (payload: WardQrPayload): QrCheckInResult | null => {
+    if (payload.qrId) {
+      const station = customQrStations.find((st) => st.id === payload.qrId);
+      if (station && !station.isActive) {
+        showToast(`QR Code ${station.code} ถูกปิดการใช้งานโดยอาจารย์แพทย์แล้ว`);
+        return null;
+      }
+      if (station) {
+        setCustomQrStations((prev) =>
+          prev.map((st) =>
+            st.id === station.id ? { ...st, checkInCount: st.checkInCount + 1 } : st
+          )
+        );
+      }
+    }
+
     const now = new Date();
     const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(
       now.getMinutes()
@@ -592,13 +782,14 @@ export default function App() {
       dayLabel: thaiDays[now.getDay()],
       department: payload.department,
       wardOrUnit: payload.wardOrUnit,
-      shiftType: 'ลงเวลาปฏิบัติงานด้วย QR Code',
+      shiftType: payload.shiftType || 'ลงเวลาปฏิบัติงานด้วย QR Code',
       timeRange: `${String(now.getHours()).padStart(2, '0')}:${String(
         now.getMinutes()
       ).padStart(2, '0')} - 16:00`,
       assignedStudent: activeStudentName,
       studentYear: activeStudent?.yearLevel ?? '6',
-      supervisingStaff: deptMeta?.headPreceptor ?? 'อาจารย์แพทย์ประจำหอผู้ป่วย',
+      supervisingStaff:
+        payload.supervisingStaff || deptMeta?.headPreceptor || 'อาจารย์แพทย์ประจำหอผู้ป่วย',
       checkedInAt: timeStr,
       checkInMethod: 'qr_scan',
       checkInWardCode: payload.wardCode,
@@ -613,6 +804,103 @@ export default function App() {
       shift: newShift,
       matchedExisting: false,
       wardCode: payload.wardCode,
+    };
+  };
+
+  const handleProcedureQrCheckIn = (
+    payload: ProcedureQrPayload
+  ): ProcedureCheckInResult | null => {
+    if (payload.qrId) {
+      const station = customQrStations.find((st) => st.id === payload.qrId);
+      if (station && !station.isActive) {
+        showToast(`QR หัตถการ ${station.code} ถูกปิดการใช้งานโดยอาจารย์แพทย์แล้ว`);
+        return null;
+      }
+      if (station) {
+        setCustomQrStations((prev) =>
+          prev.map((st) =>
+            st.id === station.id ? { ...st, checkInCount: st.checkInCount + 1 } : st
+          )
+        );
+      }
+    }
+
+    const now = new Date();
+    const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(
+      now.getMinutes()
+    ).padStart(2, '0')} น.`;
+    const logbookId = `log-qrproc-${Date.now()}`;
+
+    const newLogEntry: LogbookEntry = {
+      id: logbookId,
+      date: '24 พ.ย. 2569',
+      department: payload.department,
+      setting: payload.setting,
+      caseCode: payload.procedureCode,
+      patientSummary: `สแกน QR เช็กอินหัตถการ ณ ${payload.wardOrUnit}`,
+      icd10: 'Z48.9',
+      diagnosis: 'เช็กอินหัตถการอัตโนมัติผ่าน QR Code',
+      procedure: payload.procedureName,
+      role: payload.defaultRole,
+      preceptor: payload.supervisingStaff,
+      reflection: `เช็กอินหัตถการอัตโนมัติผ่าน QR Code (${payload.procedureCode}) ณ ${payload.wardOrUnit} เวลา ${timeStr}`,
+      status: 'approved',
+      feedback: `รับรองอัตโนมัติผ่าน QR Code โดย ${payload.supervisingStaff}`,
+    };
+
+    setLogbookEntries((prev) => [newLogEntry, ...prev]);
+
+    const normalizedProcBase = payload.procedureName.split(' (')[0].trim().toLowerCase();
+    setQuotas((prev) =>
+      prev.map((q) => {
+        const qBase = q.name.split(' (')[0].trim().toLowerCase();
+        if (q.name === payload.procedureName || qBase === normalizedProcBase) {
+          return { ...q, completed: q.completed + 1 };
+        }
+        return q;
+      })
+    );
+
+    const matchedSkill = clinicalSkills.find(
+      (s) =>
+        s.procedureName === payload.procedureName ||
+        payload.procedureName.toLowerCase().startsWith(s.procedureName.toLowerCase()) ||
+        payload.procedureName.includes(s.code)
+    );
+
+    if (matchedSkill) {
+      setClinicalSkills((prev) =>
+        prev.map((s) =>
+          s.id === matchedSkill.id
+            ? {
+                ...s,
+                studentPracticed: true,
+                studentMarkedAt: s.studentMarkedAt ?? '24 พ.ย. 2569',
+                facultyValidated: true,
+                facultySignerName: payload.supervisingStaff,
+                facultySignatureRef: payload.procedureCode,
+                validatedAt: '24 พ.ย. 2569',
+              }
+            : s
+        )
+      );
+    }
+
+    showToast(
+      `เช็กอินหัตถการ "${payload.procedureName}" เข้า E-Logbook และรับรองผลอัตโนมัติแล้ว`
+    );
+
+    return {
+      procedureCode: payload.procedureCode,
+      procedureName: payload.procedureName,
+      department: payload.department,
+      wardOrUnit: payload.wardOrUnit,
+      setting: payload.setting,
+      role: payload.defaultRole,
+      supervisingStaff: payload.supervisingStaff,
+      checkedInAt: timeStr,
+      logbookId,
+      matchedSkillValidated: Boolean(matchedSkill),
     };
   };
 
@@ -1539,13 +1827,17 @@ export default function App() {
     <div className="min-h-screen flex flex-col bg-clinical-canvas text-[#0F172A]">
       <Header
         activeTab={activeTab}
+        isAuthenticated={isAuthenticated}
         onSelectTab={setActiveTab}
-        onOpenNewLogbook={() => setLogbookModalOpen(true)}
+        onOpenNewLogbook={() => {
+          if (isAuthenticated) setLogbookModalOpen(true);
+        }}
+        onOpenAuthLogin={() => handleOpenAuthModal('login')}
       />
 
       <WorkspaceBar
         role={activeRole}
-        onChangeRole={setRole}
+        isAuthenticated={isAuthenticated}
         pendingCount={pendingLogbookCount}
         currentStudentId={activeStudentId}
         currentStudentName={activeStudentName}
@@ -1553,185 +1845,252 @@ export default function App() {
         onOpenAuthModal={handleOpenAuthModal}
         onLogout={() => void handleLogout()}
         studentPhotos={studentPhotos}
-        onOpenStudentDirectory={() => setDirectoryModalOpen(true)}
-        onOpenQuickSearch={() => setQuickSearchOpen(true)}
-        onOpenSheetsSync={() => setSheetsSyncModalOpen(true)}
+        onOpenStudentDirectory={() => {
+          if (isAuthenticated && activeRole !== 'student') setDirectoryModalOpen(true);
+        }}
+        onOpenQuickSearch={() => {
+          if (isAuthenticated) setQuickSearchOpen(true);
+        }}
+        onOpenSheetsSync={() => {
+          if (canManageAdminOrCourseOfficer) {
+            setSheetsSyncModalOpen(true);
+          } else {
+            showToast('จำกัดสิทธิ์: เฉพาะแอดมินหรือนักวิชาการประจำรายวิชาเท่านั้นที่ซิงค์ Google Sheets ได้');
+          }
+        }}
       />
 
       <main className="flex-1 max-w-[1280px] w-full mx-auto px-4 sm:px-6 py-8 sm:py-10">
-        {activeTab === 'overview' && (
-          <OverviewSection
-            role={activeRole}
-            currentStudentId={activeStudentId}
-            currentStudentName={activeStudentName}
-            authenticatedDisplayName={authenticatedDisplayName}
-            studentPhotos={studentPhotos}
-            onOpenStudentDirectory={() => setDirectoryModalOpen(true)}
-            conferences={conferences}
-            onToggleConferenceCheckIn={handleToggleConferenceCheckIn}
-            announcements={announcements}
-            onAddAnnouncement={handleAddAnnouncement}
-            exams={INITIAL_OSCE_EXAMS}
-            evaluations={evaluations}
-            courseGrades={INITIAL_COURSE_GRADES}
-            studentScores={studentScores}
-            gradingConfigs={gradingConfigs}
-            bedsideCheckIns={bedsideCheckIns}
-            logbookEntries={logbookEntries}
-            shifts={shifts}
-            badges={activeStudentBadges}
-            learningStreak={learningStreak}
-            onCompleteClinicalQuiz={handleCompleteClinicalQuiz}
-            onNavigateTab={setActiveTab}
-            onOpenNewLogbook={() => setLogbookModalOpen(true)}
-          />
-        )}
+        {!isAuthenticated ? (
+          <PortalAuthGate onAuthenticated={handleAuthenticated} />
+        ) : (
+          <>
+            {activeTab === 'overview' && (
+              <OverviewSection
+                role={activeRole}
+                currentStudentId={activeStudentId}
+                currentStudentName={activeStudentName}
+                authenticatedDisplayName={authenticatedDisplayName}
+                studentPhotos={studentPhotos}
+                onOpenStudentDirectory={() => {
+                  if (activeRole !== 'student') setDirectoryModalOpen(true);
+                }}
+                conferences={conferences}
+                onToggleConferenceCheckIn={handleToggleConferenceCheckIn}
+                announcements={announcements}
+                onAddAnnouncement={handleAddAnnouncement}
+                exams={INITIAL_OSCE_EXAMS}
+                evaluations={scopedEvaluations}
+                courseGrades={INITIAL_COURSE_GRADES}
+                studentScores={scopedStudentScores}
+                gradingConfigs={gradingConfigs}
+                bedsideCheckIns={scopedBedsideCheckIns}
+                logbookEntries={logbookEntries}
+                shifts={shifts}
+                badges={activeStudentBadges}
+                learningStreak={learningStreak}
+                onCompleteClinicalQuiz={handleCompleteClinicalQuiz}
+                onNavigateTab={setActiveTab}
+                onOpenNewLogbook={() => setLogbookModalOpen(true)}
+              />
+            )}
 
-        {activeTab === 'curriculum' && (
-          <CurriculumRosterSection
-            role={activeRole}
-            currentStudentId={activeStudentId}
-            currentStudentName={activeStudentName}
-            currentUserName={
-              authenticatedDisplayName ??
-              (activeRole === 'faculty'
-                ? 'นพ. เอกรัตน์ วัฒนสุรินทร์'
-                : activeRole === 'course_officer'
-                  ? 'นักวิชาการประจำรายวิชา ศพค. รพ.สุรินทร์'
-                  : activeRole === 'admin'
-                    ? 'ผู้บริหารศูนย์แพทยฯ รพ.สุรินทร์'
-                    : activeStudentName)
-            }
-            studentPhotos={studentPhotos}
-            departments={CLINICAL_DEPARTMENTS}
-            shifts={shifts}
-            onCheckInShift={handleCheckInShift}
-            onQrCheckIn={handleQrCheckIn}
-            bedsideCheckIns={bedsideCheckIns}
-            onRecordBedsideCheckIn={handleBedsideQrCheckIn}
-            onSaveBedsideReflection={handleSaveBedsideReflection}
-            onSaveBedsideRoundingNote={handleSaveBedsideRoundingNote}
-            onSaveBedsideSbarHandoff={handleSaveBedsideSbarHandoff}
-            onRequestSwap={handleRequestSwap}
-            onApproveSwap={handleApproveSwap}
-            leaveRequests={leaveRequests}
-            onAddLeaveRequest={handleAddLeaveRequest}
-            onUpdateLeaveStatus={handleUpdateLeaveStatus}
-            clinicalSkills={clinicalSkills}
-            onToggleStudentSkill={handleToggleStudentSkill}
-            onValidateSkillWithSignature={handleValidateSkillWithSignature}
-            onRevokeSkillValidation={handleRevokeSkillValidation}
-            badges={activeStudentBadges}
-            onOpenStudentDirectory={() => setDirectoryModalOpen(true)}
-          />
-        )}
+            {activeTab === 'curriculum' && (
+              <CurriculumRosterSection
+                role={activeRole}
+                currentStudentId={activeStudentId}
+                currentStudentName={activeStudentName}
+                currentUserName={
+                  authenticatedDisplayName ??
+                  (activeRole === 'faculty'
+                    ? 'นพ. เอกรัตน์ วัฒนสุรินทร์'
+                    : activeRole === 'course_officer'
+                      ? 'นักวิชาการประจำรายวิชา ศพค. รพ.สุรินทร์'
+                      : activeRole === 'admin'
+                        ? 'ผู้บริหารศูนย์แพทยฯ รพ.สุรินทร์'
+                        : activeStudentName)
+                }
+                studentPhotos={studentPhotos}
+                departments={CLINICAL_DEPARTMENTS}
+                shifts={shifts}
+                onCheckInShift={handleCheckInShift}
+                onQrCheckIn={handleQrCheckIn}
+                customQrStations={customQrStations}
+                externalScanPayload={externalScanPayload}
+                onClearExternalScanPayload={() => setExternalScanPayload(null)}
+                onOpenFacultyQrGenerator={handleOpenFacultyQrGenerator}
+                onProcedureQrCheckIn={handleProcedureQrCheckIn}
+                bedsideCheckIns={scopedBedsideCheckIns}
+                onRecordBedsideCheckIn={handleBedsideQrCheckIn}
+                onSaveBedsideReflection={handleSaveBedsideReflection}
+                onSaveBedsideRoundingNote={handleSaveBedsideRoundingNote}
+                onSaveBedsideSbarHandoff={handleSaveBedsideSbarHandoff}
+                onRequestSwap={handleRequestSwap}
+                onApproveSwap={handleApproveSwap}
+                leaveRequests={scopedLeaveRequests}
+                onAddLeaveRequest={handleAddLeaveRequest}
+                onUpdateLeaveStatus={handleUpdateLeaveStatus}
+                clinicalSkills={clinicalSkills}
+                onToggleStudentSkill={handleToggleStudentSkill}
+                onValidateSkillWithSignature={handleValidateSkillWithSignature}
+                onRevokeSkillValidation={handleRevokeSkillValidation}
+                badges={activeStudentBadges}
+                onOpenStudentDirectory={() => {
+                  if (activeRole !== 'student') setDirectoryModalOpen(true);
+                }}
+              />
+            )}
 
-        {activeTab === 'logbook' && (
-          <LogbookSection
-            role={activeRole}
-            currentUserName={
-              authenticatedDisplayName ??
-              (activeRole === 'faculty'
-                ? 'นพ. เอกรัตน์ วัฒนสุรินทร์'
-                : activeRole === 'course_officer'
-                  ? 'นักวิชาการประจำรายวิชา ศพค. รพ.สุรินทร์'
-                  : activeRole === 'admin'
-                    ? 'ผู้บริหารศูนย์แพทยฯ รพ.สุรินทร์'
-                    : activeStudentName)
-            }
-            entries={logbookEntries}
-            quotas={quotas}
-            peerReviewEntries={peerReviewEntries}
-            approvedPeerReviewDomains={approvedPeerReviewDomains}
-            onOpenNewLogbook={() => setLogbookModalOpen(true)}
-            onUpdateStatus={handleUpdateLogbookStatus}
-            onSubmitPeerReview={handleSubmitPeerReview}
-            onTogglePeerReviewHelpful={handleTogglePeerReviewHelpful}
-            onToggleApprovedPeerDomain={handleToggleApprovedPeerDomain}
-            onNotify={showToast}
-          />
-        )}
+            {activeTab === 'logbook' && (
+              <LogbookSection
+                role={activeRole}
+                currentUserName={
+                  authenticatedDisplayName ??
+                  (activeRole === 'faculty'
+                    ? 'นพ. เอกรัตน์ วัฒนสุรินทร์'
+                    : activeRole === 'course_officer'
+                      ? 'นักวิชาการประจำรายวิชา ศพค. รพ.สุรินทร์'
+                      : activeRole === 'admin'
+                        ? 'ผู้บริหารศูนย์แพทยฯ รพ.สุรินทร์'
+                        : activeStudentName)
+                }
+                entries={logbookEntries}
+                quotas={quotas}
+                peerReviewEntries={peerReviewEntries}
+                approvedPeerReviewDomains={approvedPeerReviewDomains}
+                onOpenNewLogbook={() => setLogbookModalOpen(true)}
+                onOpenFacultyQrGenerator={() => handleOpenFacultyQrGenerator('procedure')}
+                onUpdateStatus={handleUpdateLogbookStatus}
+                onSubmitPeerReview={handleSubmitPeerReview}
+                onTogglePeerReviewHelpful={handleTogglePeerReviewHelpful}
+                onToggleApprovedPeerDomain={runWithRbac(
+                  ADMIN_OFFICER_ROLES,
+                  'ตั้งค่าสิทธิ์ Peer-Review ประจำกลุ่มงาน',
+                  handleToggleApprovedPeerDomain
+                )}
+                onNotify={showToast}
+              />
+            )}
 
-        {activeTab === 'assessment' && (
-          <AssessmentSection
-            role={activeRole}
-            currentStudentId={activeStudentId}
-            currentStudentName={activeStudentName}
-            authenticatedDisplayName={authenticatedDisplayName}
-            assignedCourseCodes={assignedCourseCodes}
-            studentPhotos={studentPhotos}
-            epas={epas}
-            onUpdateEpaLevel={handleUpdateEpaLevel}
-            exams={INITIAL_OSCE_EXAMS}
-            evaluations={evaluations}
-            onAddEvaluation={handleAddEvaluation}
-            grades={INITIAL_COURSE_GRADES}
-            gradingConfigs={gradingConfigs}
-            onUpdateGradingConfig={handleUpdateGradingConfig}
-            studentScores={studentScores}
-            onUpdateStudentScore={handleUpdateStudentScore}
-            facultySubmissions={facultySubmissions}
-            onSubmitBatchForms={handleSubmitBatchForms}
-            preceptorFeedbacks={preceptorFeedbacks}
-            onAddPreceptorFeedback={handleAddPreceptorFeedback}
-            onNotify={showToast}
-          />
-        )}
+            {activeTab === 'assessment' && (
+              <AssessmentSection
+                role={activeRole}
+                currentStudentId={activeStudentId}
+                currentStudentName={activeStudentName}
+                authenticatedDisplayName={authenticatedDisplayName}
+                assignedCourseCodes={assignedCourseCodes}
+                studentPhotos={studentPhotos}
+                epas={epas}
+                onUpdateEpaLevel={handleUpdateEpaLevel}
+                exams={INITIAL_OSCE_EXAMS}
+                evaluations={scopedEvaluations}
+                onAddEvaluation={handleAddEvaluation}
+                grades={INITIAL_COURSE_GRADES}
+                gradingConfigs={gradingConfigs}
+                onUpdateGradingConfig={runWithRbac(
+                  ADMIN_OFFICER_ROLES,
+                  'แก้ไขโครงสร้างแบบประเมินและเกณฑ์ตัดเกรด',
+                  handleUpdateGradingConfig
+                )}
+                studentScores={scopedStudentScores}
+                onUpdateStudentScore={runWithRbac(
+                  ADMIN_OFFICER_ROLES,
+                  'แก้ไขคะแนนหรือข้อมูลผลการเรียนนักศึกษา',
+                  handleUpdateStudentScore
+                )}
+                facultySubmissions={scopedFacultySubmissions}
+                onSubmitBatchForms={handleSubmitBatchForms}
+                preceptorFeedbacks={preceptorFeedbacks}
+                onAddPreceptorFeedback={handleAddPreceptorFeedback}
+                onNotify={showToast}
+              />
+            )}
 
-        {activeTab === 'library' && (
-          <LibraryResearchSection
-            role={activeRole}
-            currentUserName={currentActorName}
-            cpgProtocols={SURIN_CPG_PROTOCOLS}
-            researchProjects={researchProjects}
-            onAddResearch={handleAddResearch}
-            onUpdateResearchStatus={handleUpdateResearchStatus}
-            welfareRequests={welfareRequests}
-            onAddWelfareRequest={handleAddWelfareRequest}
-            rooms={CLINICAL_ROOMS}
-            timeSlots={ROOM_TIME_SLOTS}
-            roomBookings={roomBookings}
-            onBookRoom={handleBookRoom}
-            onCancelRoomBooking={handleCancelRoomBooking}
-            referenceMaterials={referenceMaterials}
-            referenceCheckouts={referenceCheckouts}
-            onCheckoutMaterial={handleCheckoutMaterial}
-            onReturnMaterial={handleReturnMaterial}
-          />
+            {activeTab === 'library' && (
+              <LibraryResearchSection
+                role={activeRole}
+                currentUserName={currentActorName}
+                cpgProtocols={SURIN_CPG_PROTOCOLS}
+                researchProjects={researchProjects}
+                onAddResearch={handleAddResearch}
+                onUpdateResearchStatus={runWithRbac(
+                  ADMIN_OFFICER_ROLES,
+                  'เปลี่ยนสถานะโครงการวิจัย IRB',
+                  handleUpdateResearchStatus
+                )}
+                welfareRequests={welfareRequests}
+                onAddWelfareRequest={handleAddWelfareRequest}
+                rooms={CLINICAL_ROOMS}
+                timeSlots={ROOM_TIME_SLOTS}
+                roomBookings={roomBookings}
+                onBookRoom={handleBookRoom}
+                onCancelRoomBooking={handleCancelRoomBooking}
+                referenceMaterials={referenceMaterials}
+                referenceCheckouts={referenceCheckouts}
+                onCheckoutMaterial={handleCheckoutMaterial}
+                onReturnMaterial={handleReturnMaterial}
+              />
+            )}
+          </>
         )}
       </main>
 
-      <Footer onSelectTab={setActiveTab} />
+      <Footer isAuthenticated={isAuthenticated} onSelectTab={setActiveTab} />
 
-      <LogbookModal
-        isOpen={logbookModalOpen}
-        onClose={() => setLogbookModalOpen(false)}
-        onAddEntry={handleAddLogbookEntry}
-      />
+      {isAuthenticated && (
+        <LogbookModal
+          isOpen={logbookModalOpen}
+          onClose={() => setLogbookModalOpen(false)}
+          onAddEntry={handleAddLogbookEntry}
+        />
+      )}
 
-      <StudentDirectoryModal
-        isOpen={directoryModalOpen}
-        onClose={() => setDirectoryModalOpen(false)}
+      <RoleAccessGuard
         role={activeRole}
-        activeStudentId={activeStudentId}
-        activeBadges={activeStudentBadges}
-        studentScores={studentScores}
-        studentPhotos={studentPhotos}
-        onUploadStudentPhoto={handleUploadStudentPhoto}
-        onRemoveStudentPhoto={handleRemoveStudentPhoto}
-        onResetAllPhotos={handleResetAllPhotos}
-      />
+        isAuthenticated={isAuthenticated}
+        allowedRoles={['admin', 'course_officer', 'faculty']}
+      >
+        <StudentDirectoryModal
+          isOpen={directoryModalOpen}
+          onClose={() => setDirectoryModalOpen(false)}
+          role={activeRole}
+          activeStudentId={activeStudentId}
+          activeBadges={activeStudentBadges}
+          studentScores={scopedStudentScores}
+          studentPhotos={studentPhotos}
+          onUploadStudentPhoto={runWithRbac(
+            ADMIN_OFFICER_ROLES,
+            'อัปโหลดรูปนักศึกษา',
+            handleUploadStudentPhoto
+          )}
+          onRemoveStudentPhoto={runWithRbac(
+            ADMIN_OFFICER_ROLES,
+            'ลบรูปนักศึกษา',
+            handleRemoveStudentPhoto
+          )}
+          onResetAllPhotos={runWithRbac(
+            ADMIN_OFFICER_ROLES,
+            'คืนค่ารูปถ่ายนักศึกษาทั้งหมด',
+            handleResetAllPhotos
+          )}
+        />
+      </RoleAccessGuard>
 
-      <QuickSearchModal
-        isOpen={quickSearchOpen}
-        onClose={() => setQuickSearchOpen(false)}
-        studentPhotos={studentPhotos}
-        departments={CLINICAL_DEPARTMENTS}
-        cpgProtocols={SURIN_CPG_PROTOCOLS}
-        exams={INITIAL_OSCE_EXAMS}
-        onNavigateTab={setActiveTab}
-        onOpenStudentDirectory={() => setDirectoryModalOpen(true)}
-      />
+      {isAuthenticated && (
+        <QuickSearchModal
+          isOpen={quickSearchOpen}
+          onClose={() => setQuickSearchOpen(false)}
+          role={activeRole}
+          studentPhotos={studentPhotos}
+          departments={CLINICAL_DEPARTMENTS}
+          cpgProtocols={SURIN_CPG_PROTOCOLS}
+          exams={INITIAL_OSCE_EXAMS}
+          onNavigateTab={setActiveTab}
+          onOpenStudentDirectory={() => {
+            if (activeRole !== 'student') setDirectoryModalOpen(true);
+          }}
+        />
+      )}
 
       <AuthPortalModal
         isOpen={authModalOpen}
@@ -1742,20 +2101,60 @@ export default function App() {
         onAuthenticated={handleAuthenticated}
         onUpdatedProfile={(updated) => {
           setAuthUser(updated);
-          showToast('อัปเดตรหัสผ่านเรียบร้อยแล้ว');
+          showToast('อัปเดตข้อมูลบัญชีผู้ใช้เรียบร้อยแล้ว');
         }}
       />
 
-      <GoogleSheetsSyncModal
-        isOpen={sheetsSyncModalOpen}
-        onClose={() => setSheetsSyncModalOpen(false)}
-        actorName={currentActorName}
-        currentPayload={currentSyncPayload}
-        onApplyPulledData={handleApplyPulledSheetsData}
-        onNotify={showToast}
-      />
+      <RoleAccessGuard
+        role={activeRole}
+        isAuthenticated={isAuthenticated}
+        allowedRoles={ADMIN_OFFICER_ROLES}
+      >
+        <GoogleSheetsSyncModal
+          isOpen={sheetsSyncModalOpen}
+          onClose={() => setSheetsSyncModalOpen(false)}
+          actorName={currentActorName}
+          currentPayload={currentSyncPayload}
+          onApplyPulledData={runWithRbac(
+            ADMIN_OFFICER_ROLES,
+            'นำเข้าข้อมูลจาก Google Sheets',
+            handleApplyPulledSheetsData
+          )}
+          onNotify={showToast}
+        />
+      </RoleAccessGuard>
 
-      <MobileBottomNav activeTab={activeTab} onSelectTab={setActiveTab} />
+      <RoleAccessGuard
+        role={activeRole}
+        isAuthenticated={isAuthenticated}
+        allowedRoles={STAFF_QR_ROLES}
+      >
+        <FacultyQrGeneratorModal
+          isOpen={qrGeneratorOpen}
+          onClose={() => setQrGeneratorOpen(false)}
+          role={activeRole}
+          currentUserName={currentActorName}
+          initialKind={qrGeneratorKind}
+          departments={CLINICAL_DEPARTMENTS}
+          quotas={quotas}
+          clinicalSkills={clinicalSkills}
+          customQrStations={customQrStations}
+          onCreateQrStation={handleCreateQrStation}
+          onToggleQrStationActive={handleToggleQrStationActive}
+          onDeleteQrStation={handleDeleteQrStation}
+          onOpenScannerWithStation={(station) => {
+            setQrGeneratorOpen(false);
+            setActiveTab('curriculum');
+            setExternalScanPayload(serializeFacultyStationQr(station));
+          }}
+        />
+      </RoleAccessGuard>
+
+      <MobileBottomNav
+        activeTab={activeTab}
+        isAuthenticated={isAuthenticated}
+        onSelectTab={setActiveTab}
+      />
 
       <OfflineBanner />
 

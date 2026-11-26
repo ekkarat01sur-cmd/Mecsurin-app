@@ -557,3 +557,21 @@ export interface PeerReviewFeedbackInput {
   suggestions: string;
 }
 
+export interface FacultyGeneratedQrStation {
+  id: string;
+  code: string;
+  kind: 'ward' | 'procedure';
+  department: string;
+  wardOrUnit: string;
+  procedureName?: string;
+  clinicalSetting?: ClinicalSetting;
+  defaultRole?: ProcedureRole;
+  shiftType?: string;
+  note?: string;
+  supervisingStaff: string;
+  createdBy: string;
+  createdAt: string;
+  isActive: boolean;
+  checkInCount: number;
+}
+

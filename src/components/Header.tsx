@@ -4,8 +4,10 @@ import { ActiveTab } from '../types/medicalSchool';
 
 interface HeaderProps {
   activeTab: ActiveTab;
+  isAuthenticated?: boolean;
   onSelectTab: (tab: ActiveTab) => void;
   onOpenNewLogbook: () => void;
+  onOpenAuthLogin?: () => void;
 }
 
 const NAV_ITEMS: { id: ActiveTab; label: string }[] = [
@@ -16,10 +18,21 @@ const NAV_ITEMS: { id: ActiveTab; label: string }[] = [
   { id: 'library', label: 'คลังความรู้' },
 ];
 
-export function Header({ activeTab, onSelectTab, onOpenNewLogbook }: HeaderProps) {
+export function Header({
+  activeTab,
+  isAuthenticated = true,
+  onSelectTab,
+  onOpenNewLogbook,
+  onOpenAuthLogin,
+}: HeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleNavClick = (tab: ActiveTab) => {
+    if (!isAuthenticated) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      setMobileMenuOpen(false);
+      return;
+    }
     onSelectTab(tab);
     setMobileMenuOpen(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -37,57 +50,71 @@ export function Header({ activeTab, onSelectTab, onOpenNewLogbook }: HeaderProps
           ศพค. โรงพยาบาลสุรินทร์
         </button>
 
-        {/* Zone 2: 5 concise single-line text nav links */}
-        <nav className="hidden lg:flex items-center gap-7" aria-label="เมนูหลัก">
-          {NAV_ITEMS.map((item) => {
-            const isActive = activeTab === item.id;
-            return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => handleNavClick(item.id)}
-                className={`relative py-2 text-sm font-medium whitespace-nowrap shrink-0 cursor-pointer transition-colors ${
-                  isActive
-                    ? 'text-white font-semibold'
-                    : 'text-slate-300 hover:text-white'
-                }`}
-              >
-                {item.label}
-                {isActive && (
-                  <span
-                    className="absolute inset-x-0 -bottom-[1px] h-[2.5px] bg-[#2DD4BF] rounded-t-xs"
-                    aria-hidden="true"
-                  />
-                )}
-              </button>
-            );
-          })}
-        </nav>
+        {/* Zone 2: 5 concise single-line text nav links (only when authenticated) */}
+        {isAuthenticated && (
+          <nav className="hidden lg:flex items-center gap-7" aria-label="เมนูหลัก">
+            {NAV_ITEMS.map((item) => {
+              const isActive = activeTab === item.id;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => handleNavClick(item.id)}
+                  className={`relative py-2 text-sm font-medium whitespace-nowrap shrink-0 cursor-pointer transition-colors ${
+                    isActive
+                      ? 'text-white font-semibold'
+                      : 'text-slate-300 hover:text-white'
+                  }`}
+                >
+                  {item.label}
+                  {isActive && (
+                    <span
+                      className="absolute inset-x-0 -bottom-[1px] h-[2.5px] bg-[#2DD4BF] rounded-t-xs"
+                      aria-hidden="true"
+                    />
+                  )}
+                </button>
+              );
+            })}
+          </nav>
+        )}
 
         {/* Zone 3: 1 primary action */}
         <div className="flex items-center gap-3 shrink-0">
-          <button
-            type="button"
-            onClick={onOpenNewLogbook}
-            className="hidden sm:inline-flex items-center justify-center px-4 py-2 text-sm font-semibold text-[#06202A] bg-[#2DD4BF] rounded-lg hover:bg-[#5EEAD4] transition-colors shadow-xs whitespace-nowrap shrink-0 cursor-pointer"
-          >
-            บันทึกหัตถการ
-          </button>
+          {isAuthenticated ? (
+            <>
+              <button
+                type="button"
+                onClick={onOpenNewLogbook}
+                className="hidden sm:inline-flex items-center justify-center px-4 py-2 text-sm font-semibold text-[#06202A] bg-[#2DD4BF] rounded-lg hover:bg-[#5EEAD4] transition-colors shadow-xs whitespace-nowrap shrink-0 cursor-pointer"
+              >
+                บันทึกหัตถการ
+              </button>
 
-          <button
-            type="button"
-            onClick={() => setMobileMenuOpen((prev) => !prev)}
-            className="lg:hidden inline-flex items-center justify-center w-11 h-11 text-slate-200 hover:text-white hover:bg-white/10 rounded-lg transition-colors cursor-pointer"
-            aria-label={mobileMenuOpen ? 'ปิดเมนูนำทาง' : 'เปิดเมนูนำทาง'}
-            aria-expanded={mobileMenuOpen}
-          >
-            {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-          </button>
+              <button
+                type="button"
+                onClick={() => setMobileMenuOpen((prev) => !prev)}
+                className="lg:hidden inline-flex items-center justify-center w-11 h-11 text-slate-200 hover:text-white hover:bg-white/10 rounded-lg transition-colors cursor-pointer"
+                aria-label={mobileMenuOpen ? 'ปิดเมนูนำทาง' : 'เปิดเมนูนำทาง'}
+                aria-expanded={mobileMenuOpen}
+              >
+                {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={() => onOpenAuthLogin?.()}
+              className="inline-flex items-center justify-center px-4 py-2 text-sm font-semibold text-[#06202A] bg-[#2DD4BF] rounded-lg hover:bg-[#5EEAD4] transition-colors shadow-xs whitespace-nowrap shrink-0 cursor-pointer"
+            >
+              เข้าสู่ระบบ
+            </button>
+          )}
         </div>
       </div>
 
       {/* Mobile Navigation Drawer */}
-      {mobileMenuOpen && (
+      {isAuthenticated && mobileMenuOpen && (
         <div className="lg:hidden border-t border-white/10 bg-[#0B203D] px-4 py-4 space-y-2">
           <nav className="flex flex-col space-y-1" aria-label="เมนูหลักมือถือ">
             {NAV_ITEMS.map((item) => {

@@ -294,8 +294,8 @@ function requireAuth(req: AuthenticatedRequest, res: Response, next: NextFunctio
     return;
   }
   const account = accountStore.get(payload.sub);
-  if (!account) {
-    res.status(401).json({ error: 'ไม่พบบัญชีผู้ใช้งานในระบบ' });
+  if (!account || account.role !== payload.role) {
+    res.status(401).json({ error: 'สิทธิ์หรือเซสชันมีการเปลี่ยนแปลง กรุณาเข้าสู่ระบบใหม่' });
     return;
   }
   req.authUser = account;
@@ -475,6 +475,233 @@ async function startServer(): Promise<void> {
       .map(toPublicSummary);
 
     res.json({ users });
+  });
+
+  app.post('/api/auth/users', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+    const actor = req.authUser;
+    if (!actor || (actor.role !== 'admin' && actor.role !== 'course_officer')) {
+      res.status(403).json({ error: 'สงวนสิทธิ์เฉพาะผู้ดูแลระบบหรือนักวิชาการประจำรายวิชา' });
+      return;
+    }
+
+    const body = req.body as {
+      username?: unknown;
+      customPassword?: unknown;
+      displayName?: unknown;
+      role?: unknown;
+      affiliation?: unknown;
+      studentId?: unknown;
+      assignedCourseCodes?: unknown;
+    };
+
+    const username =
+      typeof body.username === 'string'
+        ? body.username.trim().toLowerCase().replace(/[^a-z0-9._-]/g, '')
+        : '';
+    if (username.length < 3 || username.length > 40) {
+      res.status(400).json({ error: 'ชื่อผู้ใช้ต้องเป็นตัวอักษรภาษาอังกฤษ/ตัวเลข 3–40 ตัวอักษร' });
+      return;
+    }
+
+    if (accountStore.has(username)) {
+      res.status(409).json({ error: `ชื่อผู้ใช้ "${username}" มีอยู่ในระบบแล้ว` });
+      return;
+    }
+
+    const requestedRole: UserRole =
+      body.role === 'student' ||
+      body.role === 'faculty' ||
+      body.role === 'course_officer' ||
+      body.role === 'admin'
+        ? body.role
+        : 'student';
+
+    if (
+      actor.role === 'course_officer' &&
+      (requestedRole === 'admin' || requestedRole === 'course_officer')
+    ) {
+      res.status(403).json({
+        error: 'นักวิชาการประจำรายวิชาไม่สามารถสร้างบัญชีแอดมินหรือนักวิชาการรายวิชาอื่นได้',
+      });
+      return;
+    }
+
+    const customPassword =
+      typeof body.customPassword === 'string' ? body.customPassword.trim() : '';
+    if (customPassword && (customPassword.length < 8 || customPassword.length > 72)) {
+      res.status(400).json({ error: 'รหัสผ่านที่กำหนดเองต้องมีอย่างน้อย 8 ตัวอักษร' });
+      return;
+    }
+
+    const displayName =
+      typeof body.displayName === 'string' && body.displayName.trim()
+        ? body.displayName.trim().slice(0, 120)
+        : username;
+    const affiliation =
+      typeof body.affiliation === 'string' && body.affiliation.trim()
+        ? body.affiliation.trim().slice(0, 160)
+        : 'ศูนย์แพทยศาสตรศึกษาชั้นคลินิก รพ.สุรินทร์';
+    const studentId =
+      typeof body.studentId === 'string' && body.studentId.trim()
+        ? body.studentId.trim().slice(0, 20)
+        : undefined;
+    const assignedCourseCodes = Array.isArray(body.assignedCourseCodes)
+      ? body.assignedCourseCodes
+          .filter((c): c is string => typeof c === 'string' && c.trim().length > 0)
+          .map((c) => c.trim().toUpperCase())
+      : undefined;
+
+    const issuedPassword = customPassword || generateReadableTemporaryPassword();
+    const { salt, passwordHash } = hashPassword(issuedPassword);
+
+    const created: AccountRecord = {
+      username,
+      role: requestedRole,
+      level: requestedRole === 'student' ? 1 : requestedRole === 'faculty' ? 2 : 3,
+      displayName,
+      affiliation,
+      studentId: requestedRole === 'student' ? studentId : undefined,
+      assignedCourseCodes:
+        actor.role === 'course_officer' && requestedRole === 'faculty'
+          ? actor.assignedCourseCodes
+          : assignedCourseCodes,
+      salt,
+      passwordHash,
+      mustChangePassword: true,
+    };
+
+    accountStore.set(username, created);
+
+    res.status(201).json({
+      user: toPublicSummary(created),
+      issuedCredentials: {
+        username: created.username,
+        displayName: created.displayName,
+        role: created.role,
+        affiliation: created.affiliation,
+        temporaryPassword: issuedPassword,
+      },
+    });
+  });
+
+  app.patch('/api/auth/users/:username', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+    const actor = req.authUser;
+    if (!actor || (actor.role !== 'admin' && actor.role !== 'course_officer')) {
+      res.status(403).json({ error: 'สงวนสิทธิ์เฉพาะผู้ดูแลระบบหรือนักวิชาการประจำรายวิชา' });
+      return;
+    }
+
+    const targetUsername =
+      typeof req.params.username === 'string' ? req.params.username.trim().toLowerCase() : '';
+    const target = accountStore.get(targetUsername);
+    if (!target) {
+      res.status(404).json({ error: 'ไม่พบบัญชีสมาชิกที่ต้องการแก้ไข' });
+      return;
+    }
+
+    if (!canActorManageTarget(actor, target)) {
+      res.status(403).json({ error: 'ไม่มีสิทธิ์แก้ไขข้อมูลบัญชีผู้ใช้นี้' });
+      return;
+    }
+
+    const body = req.body as {
+      displayName?: unknown;
+      role?: unknown;
+      affiliation?: unknown;
+      studentId?: unknown;
+      assignedCourseCodes?: unknown;
+      newPassword?: unknown;
+    };
+
+    if (
+      body.role === 'student' ||
+      body.role === 'faculty' ||
+      body.role === 'course_officer' ||
+      body.role === 'admin'
+    ) {
+      if (
+        actor.role === 'course_officer' &&
+        (body.role === 'admin' || body.role === 'course_officer')
+      ) {
+        res.status(403).json({
+          error: 'นักวิชาการประจำรายวิชาไม่สามารถปรับสิทธิ์เป็นแอดมินหรือนักวิชาการรายวิชาได้',
+        });
+        return;
+      }
+      if (actor.username === target.username && body.role !== 'admin') {
+        res.status(400).json({ error: 'ไม่สามารถลดระดับสิทธิ์บัญชีแอดมินที่กำลังใช้งานอยู่ของตนเองได้' });
+        return;
+      }
+      target.role = body.role;
+      target.level = body.role === 'student' ? 1 : body.role === 'faculty' ? 2 : 3;
+    }
+
+    if (typeof body.displayName === 'string' && body.displayName.trim()) {
+      target.displayName = body.displayName.trim().slice(0, 120);
+    }
+    if (typeof body.affiliation === 'string' && body.affiliation.trim()) {
+      target.affiliation = body.affiliation.trim().slice(0, 160);
+    }
+    if (body.studentId !== undefined) {
+      const sid = typeof body.studentId === 'string' ? body.studentId.trim().slice(0, 20) : '';
+      target.studentId = sid || undefined;
+    }
+    if (Array.isArray(body.assignedCourseCodes)) {
+      const cleanedCodes = body.assignedCourseCodes
+        .filter((c): c is string => typeof c === 'string' && c.trim().length > 0)
+        .map((c) => c.trim().toUpperCase());
+      target.assignedCourseCodes = cleanedCodes.length > 0 ? cleanedCodes : undefined;
+    }
+    if (typeof body.newPassword === 'string' && body.newPassword.trim()) {
+      const nextPass = body.newPassword.trim();
+      if (nextPass.length < 8 || nextPass.length > 72) {
+        res.status(400).json({ error: 'รหัสผ่านใหม่ต้องมีความยาว 8–72 ตัวอักษร' });
+        return;
+      }
+      const { salt, passwordHash } = hashPassword(nextPass);
+      target.salt = salt;
+      target.passwordHash = passwordHash;
+      target.mustChangePassword = true;
+    }
+
+    res.json({ user: toPublicSummary(target) });
+  });
+
+  app.delete('/api/auth/users/:username', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+    const actor = req.authUser;
+    if (!actor || (actor.role !== 'admin' && actor.role !== 'course_officer')) {
+      res.status(403).json({ error: 'สงวนสิทธิ์เฉพาะผู้ดูแลระบบหรือนักวิชาการประจำรายวิชา' });
+      return;
+    }
+
+    const targetUsername =
+      typeof req.params.username === 'string' ? req.params.username.trim().toLowerCase() : '';
+    const target = accountStore.get(targetUsername);
+    if (!target) {
+      res.status(404).json({ error: 'ไม่พบบัญชีสมาชิกที่ต้องการลบ' });
+      return;
+    }
+
+    if (!canActorManageTarget(actor, target)) {
+      res.status(403).json({ error: 'ไม่มีสิทธิ์ลบบัญชีผู้ใช้นี้' });
+      return;
+    }
+
+    if (actor.username === target.username) {
+      res.status(400).json({ error: 'ไม่สามารถลบบัญชีของตนเองที่กำลังเข้าสู่ระบบอยู่ได้' });
+      return;
+    }
+
+    if (target.role === 'admin') {
+      const adminCount = Array.from(accountStore.values()).filter((a) => a.role === 'admin').length;
+      if (adminCount <= 1) {
+        res.status(400).json({ error: 'ต้องมีบัญชีผู้ดูแลระบบ (Admin) อย่างน้อย 1 บัญชีในระบบ' });
+        return;
+      }
+    }
+
+    accountStore.delete(targetUsername);
+    res.json({ ok: true, deletedUsername: targetUsername });
   });
 
   app.post('/api/auth/users/issue', requireAuth, (req: AuthenticatedRequest, res: Response) => {

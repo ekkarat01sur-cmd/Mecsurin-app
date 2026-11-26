@@ -6,6 +6,7 @@ import {
   CpgProtocol,
   OsceExam,
   StudentPhotoMap,
+  UserRole,
 } from '../types/medicalSchool';
 import { COHORT_STUDENTS } from '../data/initialMedicalData';
 import { StudentAvatar } from './StudentAvatar';
@@ -13,6 +14,7 @@ import { StudentAvatar } from './StudentAvatar';
 interface QuickSearchModalProps {
   isOpen: boolean;
   onClose: () => void;
+  role?: UserRole;
   studentPhotos: StudentPhotoMap;
   departments: ClinicalDepartment[];
   cpgProtocols: CpgProtocol[];
@@ -24,6 +26,7 @@ interface QuickSearchModalProps {
 export function QuickSearchModal({
   isOpen,
   onClose,
+  role = 'faculty',
   studentPhotos,
   departments,
   cpgProtocols,
@@ -103,53 +106,55 @@ export function QuickSearchModal({
         </div>
 
         <div className="max-h-[65vh] overflow-y-auto divide-y divide-slate-100 p-4 space-y-4">
-          {/* Students */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-xs font-semibold text-slate-500">
-              <span className="inline-flex items-center gap-1.5">
-                <Users className="w-3.5 h-3.5" aria-hidden="true" />
-                ทำเนียบนักศึกษาแพทย์
-              </span>
-              <button
-                type="button"
-                onClick={() => {
-                  onClose();
-                  onOpenStudentDirectory();
-                }}
-                className="text-[#0F2A4A] hover:underline cursor-pointer"
-              >
-                ดูทั้งหมด →
-              </button>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {results.students.map((st) => (
+          {/* Students (hidden for student role) */}
+          {role !== 'student' && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs font-semibold text-slate-500">
+                <span className="inline-flex items-center gap-1.5">
+                  <Users className="w-3.5 h-3.5" aria-hidden="true" />
+                  ทำเนียบนักศึกษาแพทย์
+                </span>
                 <button
-                  key={st.studentId}
                   type="button"
                   onClick={() => {
                     onClose();
                     onOpenStudentDirectory();
                   }}
-                  className="flex items-center gap-2.5 p-2 rounded-lg border border-slate-200 hover:bg-slate-50 text-left cursor-pointer"
+                  className="text-[#0F2A4A] hover:underline cursor-pointer"
                 >
-                  <StudentAvatar
-                    studentId={st.studentId}
-                    studentName={st.studentName}
-                    studentPhotos={studentPhotos}
-                    size="sm"
-                  />
-                  <div className="min-w-0">
-                    <div className="text-xs font-semibold text-slate-900 truncate">
-                      {st.studentName}
-                    </div>
-                    <div className="text-[11px] text-slate-500 tabular-nums">
-                      {st.studentId} · ปี {st.yearLevel} · {st.group}
-                    </div>
-                  </div>
+                  ดูทั้งหมด →
                 </button>
-              ))}
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {results.students.map((st) => (
+                  <button
+                    key={st.studentId}
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      onOpenStudentDirectory();
+                    }}
+                    className="flex items-center gap-2.5 p-2 rounded-lg border border-slate-200 hover:bg-slate-50 text-left cursor-pointer"
+                  >
+                    <StudentAvatar
+                      studentId={st.studentId}
+                      studentName={st.studentName}
+                      studentPhotos={studentPhotos}
+                      size="sm"
+                    />
+                    <div className="min-w-0">
+                      <div className="text-xs font-semibold text-slate-900 truncate">
+                        {st.studentName}
+                      </div>
+                      <div className="text-[11px] text-slate-500 tabular-nums">
+                        {st.studentId} · ปี {st.yearLevel} · {st.group}
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* CPG Protocols */}
           {results.cpgs.length > 0 && (
