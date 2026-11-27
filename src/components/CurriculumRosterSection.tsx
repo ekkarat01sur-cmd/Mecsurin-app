@@ -30,6 +30,7 @@ import {
   FacultyGeneratedQrStation,
   LeaveRequest,
   ProcedureRole,
+  RotationScheduleBlock,
   SbarHandoffRecord,
   StudentPhotoMap,
   UserRole,
@@ -39,6 +40,7 @@ import { DutyRosterCalendar } from './DutyRosterCalendar';
 import { DutySwapVisualizer } from './DutySwapVisualizer';
 import { ClinicalMilestoneBadgesPanel } from './ClinicalMilestoneBadgesPanel';
 import { ClinicalSkillsMasteryChecklist } from './ClinicalSkillsMasteryChecklist';
+import { RotationAutoScheduler } from './RotationAutoScheduler';
 import { SbarHandoffModal } from './SbarHandoffModal';
 import { StudentAvatar } from './StudentAvatar';
 import {
@@ -103,6 +105,10 @@ interface CurriculumRosterSectionProps {
   onRevokeSkillValidation: (skillId: string) => void;
   badges: ClinicalMilestoneBadge[];
   onOpenStudentDirectory?: () => void;
+  rotationBlocks?: RotationScheduleBlock[];
+  onSaveRotationBlocks?: (blocks: RotationScheduleBlock[]) => void;
+  onPublishBlocksToShifts?: (newShifts: DutyShift[], year: AcademicYearLevel) => void;
+  onNotify?: (msg: string) => void;
 }
 
 export function CurriculumRosterSection({
@@ -136,7 +142,12 @@ export function CurriculumRosterSection({
   onRevokeSkillValidation,
   badges,
   onOpenStudentDirectory,
+  rotationBlocks = [],
+  onSaveRotationBlocks,
+  onPublishBlocksToShifts,
+  onNotify,
 }: CurriculumRosterSectionProps) {
+  const [curriculumSubTab, setCurriculumSubTab] = useState<'overview' | 'scheduler'>('overview');
   const [selectedYear, setSelectedYear] = useState<'all' | AcademicYearLevel>('all');
   const [selectedDept, setSelectedDept] = useState<ClinicalDepartment | null>(departments[0] ?? null);
   const [rosterViewMode, setRosterViewMode] = useState<'calendar' | 'table'>('calendar');
@@ -210,31 +221,72 @@ export function CurriculumRosterSection({
           </p>
         </div>
 
-        <div className="inline-flex items-center p-1 bg-slate-200/75 rounded-lg self-start">
-          {(
-            [
-              { id: 'all', label: 'ทุกชั้นปี (4–6)' },
-              { id: '4', label: 'ชั้นปีที่ 4' },
-              { id: '5', label: 'ชั้นปีที่ 5' },
-              { id: '6', label: 'ชั้นปีที่ 6 (Extern)' },
-            ] as const
-          ).map((tab) => (
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 self-start">
+          <div className="inline-flex items-center p-1 bg-slate-200/75 rounded-lg">
             <button
-              key={tab.id}
               type="button"
-              onClick={() => setSelectedYear(tab.id)}
+              onClick={() => setCurriculumSubTab('overview')}
               className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
-                selectedYear === tab.id
+                curriculumSubTab === 'overview'
                   ? 'bg-white text-[#0F2A4A] shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              {tab.label}
+              โครงสร้าง & ตารางเวร
             </button>
-          ))}
+            <button
+              type="button"
+              onClick={() => setCurriculumSubTab('scheduler')}
+              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                curriculumSubTab === 'scheduler'
+                  ? 'bg-white text-[#0F2A4A] shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              จัดตารางหมุนเวียนอัตโนมัติ
+            </button>
+          </div>
+
+          {curriculumSubTab === 'overview' && (
+            <div className="inline-flex items-center p-1 bg-slate-200/75 rounded-lg">
+              {(
+                [
+                  { id: 'all', label: 'ทุกชั้นปี (4–6)' },
+                  { id: '4', label: 'ชั้นปีที่ 4' },
+                  { id: '5', label: 'ชั้นปีที่ 5' },
+                  { id: '6', label: 'ชั้นปีที่ 6 (Extern)' },
+                ] as const
+              ).map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setSelectedYear(tab.id)}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                    selectedYear === tab.id
+                      ? 'bg-white text-[#0F2A4A] shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
+      {curriculumSubTab === 'scheduler' ? (
+        <RotationAutoScheduler
+          role={role}
+          departments={departments}
+          rotationBlocks={rotationBlocks}
+          onSaveRotationBlocks={(blocks) => onSaveRotationBlocks?.(blocks)}
+          shifts={shifts}
+          onPublishBlocksToShifts={(newShifts, yr) => onPublishBlocksToShifts?.(newShifts, yr)}
+          onNotify={onNotify}
+        />
+      ) : (
+        <>
       {/* Curriculum Table + Department Syllabus Inspector */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         <div className="lg:col-span-7 bg-white border border-slate-200 rounded-xl overflow-hidden">
@@ -1636,6 +1688,8 @@ export function CurriculumRosterSection({
             </form>
           </div>
         </div>
+      )}
+        </>
       )}
 
       <WardQrScannerModal

@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { AlertCircle, CheckCircle2, ClipboardCheck, GraduationCap, XCircle } from 'lucide-react';
 import {
+  AuditLogEntry,
   CourseGrade,
+  CourseGradeSignOff,
   CourseGradingConfig,
   EpaMilestone,
   FacultyFormSubmission,
@@ -13,6 +15,7 @@ import {
   UserRole,
 } from '../types/medicalSchool';
 import { COHORT_STUDENTS } from '../data/initialMedicalData';
+import { AuditAndSignOffPanel } from './AuditAndSignOffPanel';
 import { CourseEvaluationConfigPanel } from './CourseEvaluationConfigPanel';
 import { FacultyEvaluationForms } from './FacultyEvaluationForms';
 import { evaluateStudentGrade, MplGradingStudio } from './MplGradingStudio';
@@ -42,6 +45,11 @@ interface AssessmentSectionProps {
   onSubmitBatchForms: (submissions: Omit<FacultyFormSubmission, 'id' | 'date'>[]) => void;
   preceptorFeedbacks: PreceptorFeedback[];
   onAddPreceptorFeedback: (item: Omit<PreceptorFeedback, 'id' | 'submittedAt'>) => void;
+  gradeSignOffs?: CourseGradeSignOff[];
+  onVerifyCourseGrades?: (courseCode: string) => void;
+  onChairSignCourseGrades?: (courseCode: string) => void;
+  onReopenCourseGrades?: (courseCode: string) => void;
+  auditLogs?: AuditLogEntry[];
   onNotify?: (msg: string) => void;
 }
 
@@ -67,7 +75,8 @@ type AssessmentSubTab =
   | 'course_blueprint'
   | 'mpl_grading'
   | 'osce_epa'
-  | 'preceptor_feedback';
+  | 'preceptor_feedback'
+  | 'audit_signoff';
 
 export function AssessmentSection({
   role,
@@ -90,6 +99,11 @@ export function AssessmentSection({
   onSubmitBatchForms,
   preceptorFeedbacks,
   onAddPreceptorFeedback,
+  gradeSignOffs = [],
+  onVerifyCourseGrades,
+  onChairSignCourseGrades,
+  onReopenCourseGrades,
+  auditLogs = [],
   onNotify,
 }: AssessmentSectionProps) {
   const activeStudent =
@@ -103,7 +117,10 @@ export function AssessmentSection({
   useEffect(() => {
     if (role === 'student') {
       setSubTab((prev) =>
-        prev === 'forms' || prev === 'mpl_grading' || prev === 'course_blueprint'
+        prev === 'forms' ||
+        prev === 'mpl_grading' ||
+        prev === 'course_blueprint' ||
+        prev === 'audit_signoff'
           ? 'my_grades'
           : prev
       );
@@ -190,6 +207,7 @@ export function AssessmentSection({
                   ? ([{ id: 'course_blueprint', label: 'ตั้งค่าแบบฟอร์ม & หัวข้อรายวิชา' }] as const)
                   : []),
                 { id: 'mpl_grading', label: 'ตัดเกรด % และเกณฑ์ MPL' },
+                { id: 'audit_signoff', label: 'รับรองเกรด & Audit Log' },
                 { id: 'osce_epa', label: 'OSCE / EPA และผลการเรียน' },
                 { id: 'preceptor_feedback', label: 'ผลประเมินการสอน (QA)' },
               ] as const)
@@ -876,6 +894,21 @@ export function AssessmentSection({
         </div>
       </section>
         </div>
+      )}
+
+      {subTab === 'audit_signoff' && role !== 'student' && (
+        <AuditAndSignOffPanel
+          role={role}
+          currentUserName={authenticatedDisplayName ?? 'ฝ่ายวิชาการ ศพค. รพ.สุรินทร์'}
+          gradingConfigs={gradingConfigs}
+          studentScores={studentScores}
+          gradeSignOffs={gradeSignOffs}
+          onVerifyCourseGrades={(code) => onVerifyCourseGrades?.(code)}
+          onChairSignCourseGrades={(code) => onChairSignCourseGrades?.(code)}
+          onReopenCourseGrades={(code) => onReopenCourseGrades?.(code)}
+          auditLogs={auditLogs}
+          onNotify={onNotify}
+        />
       )}
     </div>
   );

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import {
   Camera,
   Check,
+  Cloud,
   Database,
   FileSpreadsheet,
   KeyRound,
@@ -14,8 +15,16 @@ import {
   Users,
   X,
 } from 'lucide-react';
-import { AuthUserProfile, StudentPhotoMap, UserRole } from '../types/medicalSchool';
+import {
+  ActiveTab,
+  AuthUserProfile,
+  NotificationChannelSettings,
+  PortalNotificationItem,
+  StudentPhotoMap,
+  UserRole,
+} from '../types/medicalSchool';
 import { ROLE_PERMISSION_PROFILES } from '../data/initialMedicalData';
+import { NotificationCenterPopover } from './NotificationCenterPopover';
 import { PWAInstallButton } from './PWAInstallButton';
 import { ADMIN_OFFICER_ROLES, hasRoleAccess } from './RoleAccessGuard';
 import { StudentAvatar } from './StudentAvatar';
@@ -34,6 +43,15 @@ interface WorkspaceBarProps {
   onOpenQuickSearch: () => void;
   onOpenSheetsSync: () => void;
   onOpenAdminBackOffice?: () => void;
+  authToken?: string | null;
+  serverSyncMode?: 'server' | 'local';
+  notifications?: PortalNotificationItem[];
+  onMarkNotificationRead?: (id: string) => void;
+  onMarkAllNotificationsRead?: () => void;
+  onNavigateTab?: (tab: ActiveTab) => void;
+  notificationSettings?: NotificationChannelSettings;
+  onSaveNotificationSettings?: (next: NotificationChannelSettings) => void;
+  onNotify?: (msg: string) => void;
 }
 
 export function WorkspaceBar({
@@ -50,6 +68,15 @@ export function WorkspaceBar({
   onOpenQuickSearch,
   onOpenSheetsSync,
   onOpenAdminBackOffice,
+  authToken = null,
+  serverSyncMode = 'local',
+  notifications = [],
+  onMarkNotificationRead,
+  onMarkAllNotificationsRead,
+  onNavigateTab,
+  notificationSettings,
+  onSaveNotificationSettings,
+  onNotify,
 }: WorkspaceBarProps) {
   const [showMatrix, setShowMatrix] = useState(false);
   const profile = ROLE_PERMISSION_PROFILES[role];
@@ -103,6 +130,11 @@ export function WorkspaceBar({
                 </>
               )}
               <span aria-hidden="true" className="text-slate-300">·</span>
+              <span className="inline-flex items-center gap-1 text-xs text-slate-500">
+                <Cloud className="w-3.5 h-3.5 text-[#0D9488]" aria-hidden="true" />
+                {serverSyncMode === 'server' ? 'ฐานข้อมูลเซิร์ฟเวอร์กลาง' : 'บันทึกในเครื่อง'}
+              </span>
+              <span aria-hidden="true" className="text-slate-300">·</span>
               <button
                 type="button"
                 onClick={() => setShowMatrix((prev) => !prev)}
@@ -137,6 +169,25 @@ export function WorkspaceBar({
 
             {isAuthenticated && authUser ? (
               <>
+                {notificationSettings &&
+                  onMarkNotificationRead &&
+                  onMarkAllNotificationsRead &&
+                  onNavigateTab &&
+                  onSaveNotificationSettings &&
+                  onNotify && (
+                    <NotificationCenterPopover
+                      role={role}
+                      authToken={authToken}
+                      notifications={notifications}
+                      onMarkRead={onMarkNotificationRead}
+                      onMarkAllRead={onMarkAllNotificationsRead}
+                      onNavigateTab={onNavigateTab}
+                      settings={notificationSettings}
+                      onSaveSettings={onSaveNotificationSettings}
+                      onNotify={onNotify}
+                    />
+                  )}
+
                 <button
                   type="button"
                   onClick={onOpenQuickSearch}

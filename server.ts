@@ -52,10 +52,29 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const PORT = Number(process.env.PORT || 3000);
-const SESSION_SECRET =
-  process.env.SESSION_SECRET && process.env.SESSION_SECRET.trim().length >= 16
-    ? process.env.SESSION_SECRET.trim()
-    : crypto.randomBytes(32).toString('hex');
+const DATA_DIR = path.resolve(__dirname, '.data');
+const DB_FILE = path.join(DATA_DIR, 'surin-mec-db.json');
+const SECRET_FILE = path.join(DATA_DIR, 'session.secret');
+
+function loadOrCreateSessionSecret(): string {
+  if (process.env.SESSION_SECRET && process.env.SESSION_SECRET.trim().length >= 16) {
+    return process.env.SESSION_SECRET.trim();
+  }
+  try {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+    if (fs.existsSync(SECRET_FILE)) {
+      const existing = fs.readFileSync(SECRET_FILE, 'utf8').trim();
+      if (existing.length >= 32) return existing;
+    }
+    const generated = crypto.randomBytes(32).toString('hex');
+    fs.writeFileSync(SECRET_FILE, generated, { encoding: 'utf8', mode: 0o600 });
+    return generated;
+  } catch {
+    return crypto.randomBytes(32).toString('hex');
+  }
+}
+
+const SESSION_SECRET = loadOrCreateSessionSecret();
 
 const ADMIN_BOOTSTRAP_PASSCODE = process.env.ADMIN_BOOTSTRAP_PASSCODE?.trim() || '';
 const DEFAULT_GOOGLE_SHEETS_ID =
@@ -279,7 +298,129 @@ function buildInitialAccounts(): Map<string, AccountRecord> {
   return accounts;
 }
 
-const accountStore = buildInitialAccounts();
+interface ServerAuditLogEntry {
+  id: string;
+  isoTimestamp: string;
+  timestampLabel: string;
+  actorName: string;
+  actorUsername: string;
+  actorRole: UserRole;
+  category: string;
+  action: string;
+  targetLabel: string;
+  detail: string;
+}
+
+interface PersistedDbPayload {
+  version: number;
+  updatedAt: string;
+  updatedBy: string;
+  accounts: AccountRecord[];
+  portalState: Record<string, unknown>;
+  auditLogs: ServerAuditLogEntry[];
+}
+
+function loadPersistedDb(): {
+  accounts: Map<string, AccountRecord>;
+  portalState: Record<string, unknown>;
+  auditLogs: ServerAuditLogEntry[];
+  updatedAt: string;
+  updatedBy: string;
+} {
+  const defaultAccounts = buildInitialAccounts();
+  try {
+    if (!fs.existsSync(DB_FILE)) {
+      return {
+        accounts: defaultAccounts,
+        portalState: {},
+        auditLogs: [],
+        updatedAt: new Date().toISOString(),
+        updatedBy: 'system',
+      };
+    }
+    const raw = fs.readFileSync(DB_FILE, 'utf8');
+    const parsed = JSON.parse(raw) as Partial<PersistedDbPayload>;
+    const accounts = new Map<string, AccountRecord>();
+    if (Array.isArray(parsed.accounts) && parsed.accounts.length > 0) {
+      for (const acc of parsed.accounts) {
+        if (acc && typeof acc.username === 'string') {
+          accounts.set(acc.username, acc);
+        }
+      }
+      for (const [uname, seed] of defaultAccounts.entries()) {
+        if (!accounts.has(uname)) {
+          accounts.set(uname, seed);
+        }
+      }
+    } else {
+      for (const [uname, seed] of defaultAccounts.entries()) {
+        accounts.set(uname, seed);
+      }
+    }
+    return {
+      accounts,
+      portalState:
+        parsed.portalState && typeof parsed.portalState === 'object' ? parsed.portalState : {},
+      auditLogs: Array.isArray(parsed.auditLogs) ? parsed.auditLogs.slice(0, 500) : [],
+      updatedAt: typeof parsed.updatedAt === 'string' ? parsed.updatedAt : new Date().toISOString(),
+      updatedBy: typeof parsed.updatedBy === 'string' ? parsed.updatedBy : 'system',
+    };
+  } catch {
+    return {
+      accounts: defaultAccounts,
+      portalState: {},
+      auditLogs: [],
+      updatedAt: new Date().toISOString(),
+      updatedBy: 'system',
+    };
+  }
+}
+
+const persistedDb = loadPersistedDb();
+const accountStore = persistedDb.accounts;
+let portalStateStore: Record<string, unknown> = persistedDb.portalState;
+let auditLogStore: ServerAuditLogEntry[] = persistedDb.auditLogs;
+let portalUpdatedAt = persistedDb.updatedAt;
+let portalUpdatedBy = persistedDb.updatedBy;
+
+function savePersistedDb(): void {
+  try {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+    const payload: PersistedDbPayload = {
+      version: 1,
+      updatedAt: portalUpdatedAt,
+      updatedBy: portalUpdatedBy,
+      accounts: Array.from(accountStore.values()),
+      portalState: portalStateStore,
+      auditLogs: auditLogStore.slice(0, 500),
+    };
+    const tmpFile = `${DB_FILE}.${process.pid}.tmp`;
+    fs.writeFileSync(tmpFile, JSON.stringify(payload), { encoding: 'utf8', mode: 0o600 });
+    fs.renameSync(tmpFile, DB_FILE);
+  } catch {
+    // Ignore filesystem permission issues in read-only sandboxes
+  }
+}
+
+function appendServerAuditLog(entry: Omit<ServerAuditLogEntry, 'id' | 'isoTimestamp' | 'timestampLabel'>): ServerAuditLogEntry {
+  const now = new Date();
+  const timestampLabel = new Intl.DateTimeFormat('th-TH', {
+    timeZone: 'Asia/Bangkok',
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(now);
+  const full: ServerAuditLogEntry = {
+    ...entry,
+    id: `aud-${Date.now()}-${crypto.randomBytes(2).toString('hex')}`,
+    isoTimestamp: now.toISOString(),
+    timestampLabel,
+  };
+  auditLogStore = [full, ...auditLogStore].slice(0, 500);
+  return full;
+}
 
 function requireAuth(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
   const header = req.headers.authorization;
@@ -376,6 +517,16 @@ async function startServer(): Promise<void> {
     adminAcc.salt = salt;
     adminAcc.passwordHash = passwordHash;
     adminAcc.mustChangePassword = false;
+    appendServerAuditLog({
+      actorName: adminAcc.displayName,
+      actorUsername: adminAcc.username,
+      actorRole: adminAcc.role,
+      category: 'auth',
+      action: 'ตั้งค่ารหัสผ่านผู้ดูแลระบบครั้งแรก',
+      targetLabel: adminAcc.username,
+      detail: 'เปิดใช้งานบัญชีผู้ดูแลระบบ (ระดับ 3B) สำเร็จ',
+    });
+    savePersistedDb();
 
     const token = signToken(adminAcc);
     res.json({
@@ -459,6 +610,7 @@ async function startServer(): Promise<void> {
     actor.salt = salt;
     actor.passwordHash = passwordHash;
     actor.mustChangePassword = false;
+    savePersistedDb();
 
     res.json({ user: toPublicSummary(actor) });
   });
@@ -571,6 +723,16 @@ async function startServer(): Promise<void> {
     };
 
     accountStore.set(username, created);
+    appendServerAuditLog({
+      actorName: actor.displayName,
+      actorUsername: actor.username,
+      actorRole: actor.role,
+      category: 'auth',
+      action: 'สร้างบัญชีสมาชิกใหม่',
+      targetLabel: created.username,
+      detail: `บทบาท ${created.role} (${created.displayName})`,
+    });
+    savePersistedDb();
 
     res.status(201).json({
       user: toPublicSummary(created),
@@ -664,6 +826,17 @@ async function startServer(): Promise<void> {
       target.mustChangePassword = true;
     }
 
+    appendServerAuditLog({
+      actorName: actor.displayName,
+      actorUsername: actor.username,
+      actorRole: actor.role,
+      category: 'auth',
+      action: 'แก้ไขข้อมูลบัญชีสมาชิก',
+      targetLabel: target.username,
+      detail: `อัปเดตข้อมูลและสิทธิ์ (${target.role})`,
+    });
+    savePersistedDb();
+
     res.json({ user: toPublicSummary(target) });
   });
 
@@ -701,6 +874,16 @@ async function startServer(): Promise<void> {
     }
 
     accountStore.delete(targetUsername);
+    appendServerAuditLog({
+      actorName: actor.displayName,
+      actorUsername: actor.username,
+      actorRole: actor.role,
+      category: 'auth',
+      action: 'ลบบัญชีสมาชิก',
+      targetLabel: targetUsername,
+      detail: `ลบบัญชี ${target.displayName} (${target.role})`,
+    });
+    savePersistedDb();
     res.json({ ok: true, deletedUsername: targetUsername });
   });
 
@@ -791,6 +974,7 @@ async function startServer(): Promise<void> {
     target.salt = salt;
     target.passwordHash = passwordHash;
     target.mustChangePassword = true;
+    savePersistedDb();
 
     res.json({
       user: toPublicSummary(target),
@@ -851,6 +1035,8 @@ async function startServer(): Promise<void> {
         temporaryPassword: tempPass,
       });
     }
+
+    savePersistedDb();
 
     res.json({
       count: issuedList.length,
@@ -1546,6 +1732,243 @@ async function startServer(): Promise<void> {
       return;
     }
     res.json(result.data);
+  });
+
+  // ==========================================
+  // Portal Shared Persistence, Audit Log & Webhook Dispatch
+  // ==========================================
+
+  const ADMIN_ONLY_STATE_KEYS = new Set([
+    'departments',
+    'rooms',
+    'cpgProtocols',
+    'referenceMaterials',
+  ]);
+  const OFFICER_OR_ADMIN_STATE_KEYS = new Set([
+    'gradingConfigs',
+    'studentScores',
+    'courseGrades',
+    'gradeSignOffs',
+    'exams',
+    'announcements',
+    'rotationBlocks',
+    'approvedPeerReviewDomains',
+    'quotas',
+    'notificationSettings',
+  ]);
+
+  app.get('/api/portal/state', requireAuth, (_req: AuthenticatedRequest, res: Response) => {
+    res.json({
+      state: portalStateStore,
+      auditLogs: auditLogStore,
+      updatedAt: portalUpdatedAt,
+      updatedBy: portalUpdatedBy,
+    });
+  });
+
+  app.put('/api/portal/state', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+    const actor = req.authUser;
+    if (!actor) {
+      res.status(401).json({ error: 'ไม่ได้เข้าสู่ระบบ' });
+      return;
+    }
+    const body = req.body as { patch?: unknown; fullReplace?: unknown };
+    const patch =
+      body && typeof body.patch === 'object' && body.patch !== null
+        ? (body.patch as Record<string, unknown>)
+        : null;
+
+    if (!patch) {
+      res.status(400).json({ error: 'รูปแบบข้อมูลสำหรับบันทึกไม่ถูกต้อง' });
+      return;
+    }
+
+    if (body.fullReplace === true && actor.role !== 'admin') {
+      res.status(403).json({ error: 'เฉพาะบัญชีแอดมิน (ระดับ 3B) เท่านั้นที่รีเซ็ตหรือแทนที่ข้อมูลทั้งระบบได้' });
+      return;
+    }
+
+    const nextState = body.fullReplace === true ? {} : { ...portalStateStore };
+    const rejectedKeys: string[] = [];
+
+    for (const [key, value] of Object.entries(patch)) {
+      if (ADMIN_ONLY_STATE_KEYS.has(key) && actor.role !== 'admin') {
+        rejectedKeys.push(key);
+        continue;
+      }
+      if (
+        OFFICER_OR_ADMIN_STATE_KEYS.has(key) &&
+        actor.role !== 'admin' &&
+        actor.role !== 'course_officer'
+      ) {
+        rejectedKeys.push(key);
+        continue;
+      }
+      nextState[key] = value;
+    }
+
+    portalStateStore = nextState;
+    portalUpdatedAt = new Date().toISOString();
+    portalUpdatedBy = actor.displayName;
+    savePersistedDb();
+
+    res.json({
+      ok: true,
+      updatedAt: portalUpdatedAt,
+      updatedBy: portalUpdatedBy,
+      skippedRestrictedKeys: rejectedKeys,
+    });
+  });
+
+  app.get('/api/portal/audit', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+    const actor = req.authUser;
+    if (!actor) {
+      res.status(401).json({ error: 'ไม่ได้เข้าสู่ระบบ' });
+      return;
+    }
+    const logs =
+      actor.role === 'admin' || actor.role === 'course_officer'
+        ? auditLogStore
+        : auditLogStore.filter((entry) => entry.actorUsername === actor.username);
+    res.json({ auditLogs: logs });
+  });
+
+  app.post('/api/portal/audit', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+    const actor = req.authUser;
+    if (!actor) {
+      res.status(401).json({ error: 'ไม่ได้เข้าสู่ระบบ' });
+      return;
+    }
+    const body = req.body as {
+      category?: unknown;
+      action?: unknown;
+      targetLabel?: unknown;
+      detail?: unknown;
+    };
+    const category =
+      typeof body.category === 'string' && body.category.trim()
+        ? body.category.trim().slice(0, 40)
+        : 'admin_crud';
+    const action =
+      typeof body.action === 'string' && body.action.trim()
+        ? body.action.trim().slice(0, 140)
+        : '';
+    const targetLabel =
+      typeof body.targetLabel === 'string' && body.targetLabel.trim()
+        ? body.targetLabel.trim().slice(0, 140)
+        : '-';
+    const detail =
+      typeof body.detail === 'string' && body.detail.trim()
+        ? body.detail.trim().slice(0, 320)
+        : '';
+
+    if (!action) {
+      res.status(400).json({ error: 'กรุณาระบุชื่อกิจกรรมสำหรับการบันทึก Audit Log' });
+      return;
+    }
+
+    const created = appendServerAuditLog({
+      actorName: actor.displayName,
+      actorUsername: actor.username,
+      actorRole: actor.role,
+      category,
+      action,
+      targetLabel,
+      detail,
+    });
+    savePersistedDb();
+    res.status(201).json({ entry: created });
+  });
+
+  function isSafeExternalWebhookUrl(rawUrl: unknown): string | null {
+    if (typeof rawUrl !== 'string' || !rawUrl.trim()) return null;
+    try {
+      const parsed = new URL(rawUrl.trim());
+      if (parsed.protocol !== 'https:') return null;
+      const host = parsed.hostname.toLowerCase();
+      if (
+        host === 'localhost' ||
+        host === '0.0.0.0' ||
+        host.endsWith('.local') ||
+        host.endsWith('.internal') ||
+        host.startsWith('127.') ||
+        host.startsWith('10.') ||
+        host.startsWith('192.168.') ||
+        host.startsWith('169.254.') ||
+        /^172\.(1[6-9]|2\d|3[0-1])\./.test(host) ||
+        host === '::1'
+      ) {
+        return null;
+      }
+      return parsed.toString();
+    } catch {
+      return null;
+    }
+  }
+
+  app.post('/api/notifications/test-webhook', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+    const actor = req.authUser;
+    if (!actor || (actor.role !== 'admin' && actor.role !== 'course_officer')) {
+      res.status(403).json({ error: 'สงวนสิทธิ์เฉพาะแอดมินหรือนักวิชาการประจำรายวิชา' });
+      return;
+    }
+    const body = req.body as { webhookUrl?: unknown; title?: unknown; message?: unknown };
+    const safeUrl = isSafeExternalWebhookUrl(body.webhookUrl);
+    if (!safeUrl) {
+      res.status(400).json({
+        error: 'Webhook URL ต้องขึ้นต้นด้วย https:// และต้องเป็นโดเมนภายนอกที่ใช้งานจริง',
+      });
+      return;
+    }
+    const title =
+      typeof body.title === 'string' && body.title.trim()
+        ? body.title.trim().slice(0, 140)
+        : 'ทดสอบการแจ้งเตือน ศพค. โรงพยาบาลสุรินทร์';
+    const message =
+      typeof body.message === 'string' && body.message.trim()
+        ? body.message.trim().slice(0, 400)
+        : 'ระบบพอร์ทัลเชื่อมต่อช่องทางแจ้งเตือนภายนอกเรียบร้อยแล้ว';
+
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 8000);
+      const response = await fetch(safeUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          source: 'surin-mec-portal',
+          title,
+          message,
+          actor: actor.displayName,
+          sentAt: new Date().toISOString(),
+        }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+      if (!response.ok) {
+        res.status(502).json({
+          error: `ปลายทางตอบกลับสถานะ HTTP ${response.status}`,
+        });
+        return;
+      }
+      appendServerAuditLog({
+        actorName: actor.displayName,
+        actorUsername: actor.username,
+        actorRole: actor.role,
+        category: 'admin_crud',
+        action: 'ทดสอบส่งแจ้งเตือนผ่าน Webhook',
+        targetLabel: new URL(safeUrl).hostname,
+        detail: title,
+      });
+      savePersistedDb();
+      res.json({ ok: true, status: response.status });
+    } catch (err) {
+      res.status(502).json({
+        error: `ไม่สามารถส่งข้อมูลไปยัง Webhook ได้: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      });
+    }
   });
 
   const httpServer = http.createServer(app);

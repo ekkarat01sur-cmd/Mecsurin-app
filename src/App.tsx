@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
+  AcademicYearLevel,
   ActiveTab,
   Announcement,
+  AuditLogCategory,
+  AuditLogEntry,
   AuthUserProfile,
   BedsideCheckInRecord,
   ClinicalDepartment,
@@ -9,6 +12,7 @@ import {
   ClinicalSkillMasteryItem,
   ConferenceEvent,
   CourseGrade,
+  CourseGradeSignOff,
   CourseGradingConfig,
   CpgProtocol,
   DutyShift,
@@ -19,11 +23,13 @@ import {
   LeaveRequest,
   LogbookEntry,
   LogbookStatus,
+  NotificationChannelSettings,
   OsceEvaluationRecord,
   OsceExam,
   PeerReviewComment,
   PeerReviewEntry,
   PeerReviewFeedbackInput,
+  PortalNotificationItem,
   PreceptorFeedback,
   ProcedureQuota,
   QuizCompletionRecord,
@@ -31,6 +37,7 @@ import {
   ResearchProject,
   RoomBooking,
   RoomResource,
+  RotationScheduleBlock,
   SbarHandoffRecord,
   StudentCourseScore,
   StudentPhotoMap,
@@ -103,6 +110,11 @@ import { FacultyQrGeneratorModal } from './components/FacultyQrGeneratorModal';
 import { AdminBackOfficeModal } from './components/AdminBackOfficeModal';
 import { serializeFacultyStationQr } from './utils/qrPayloads';
 import { logoutAccount } from './utils/authClient';
+import {
+  fetchServerPortalState,
+  pushServerPortalPatch,
+  recordServerAuditLog,
+} from './utils/portalSyncClient';
 import { Footer } from './components/Footer';
 import { MobileBottomNav } from './components/MobileBottomNav';
 import { OfflineBanner } from './components/OfflineBanner';
@@ -240,6 +252,33 @@ export default function App() {
     const saved = loadSavedState<CpgProtocol[]>('cpgProtocols', SURIN_CPG_PROTOCOLS);
     return Array.isArray(saved) && saved.length > 0 ? saved : SURIN_CPG_PROTOCOLS;
   });
+  const [rotationBlocks, setRotationBlocks] = useState<RotationScheduleBlock[]>(() => {
+    const saved = loadSavedState<RotationScheduleBlock[]>('rotationBlocks', []);
+    return Array.isArray(saved) ? saved : [];
+  });
+  const [gradeSignOffs, setGradeSignOffs] = useState<CourseGradeSignOff[]>(() => {
+    const saved = loadSavedState<CourseGradeSignOff[]>('gradeSignOffs', []);
+    return Array.isArray(saved) ? saved : [];
+  });
+  const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>(() => {
+    const saved = loadSavedState<AuditLogEntry[]>('auditLogs', []);
+    return Array.isArray(saved) ? saved : [];
+  });
+  const [readNotificationIds, setReadNotificationIds] = useState<string[]>(() => {
+    const saved = loadSavedState<string[]>('readNotificationIds', []);
+    return Array.isArray(saved) ? saved : [];
+  });
+  const [notificationSettings, setNotificationSettings] =
+    useState<NotificationChannelSettings>(() =>
+      loadSavedState<NotificationChannelSettings>('notificationSettings', {
+        enableInAppAlerts: true,
+        enableBrowserPush: false,
+        webhookEnabled: false,
+        webhookUrl: '',
+        alertBeforeShiftHours: 4,
+      })
+    );
+  const [serverSyncMode, setServerSyncMode] = useState<'server' | 'local'>('local');
 
   const [customQrStations, setCustomQrStations] = useState<FacultyGeneratedQrStation[]>(() => {
     const saved = loadSavedState<FacultyGeneratedQrStation[]>(
@@ -482,6 +521,11 @@ export default function App() {
           courseGrades,
           rooms,
           cpgProtocols,
+          rotationBlocks,
+          gradeSignOffs,
+          auditLogs,
+          readNotificationIds,
+          notificationSettings,
         })
       );
     } catch {
@@ -517,6 +561,84 @@ export default function App() {
     courseGrades,
     rooms,
     cpgProtocols,
+    rotationBlocks,
+    gradeSignOffs,
+    auditLogs,
+    readNotificationIds,
+    notificationSettings,
+  ]);
+
+  useEffect(() => {
+    if (!authToken || !authUser || serverSyncMode !== 'server') return;
+    const timer = window.setTimeout(() => {
+      void pushServerPortalPatch(authToken, {
+        conferences,
+        announcements,
+        shifts,
+        logbookEntries,
+        quotas,
+        epas,
+        evaluations,
+        researchProjects,
+        welfareRequests,
+        gradingConfigs,
+        studentScores,
+        facultySubmissions,
+        leaveRequests,
+        preceptorFeedbacks,
+        clinicalSkills,
+        roomBookings,
+        referenceMaterials,
+        referenceCheckouts,
+        bedsideCheckIns,
+        approvedPeerReviewDomains,
+        peerReviewEntries,
+        customQrStations,
+        departments,
+        exams,
+        courseGrades,
+        rooms,
+        cpgProtocols,
+        rotationBlocks,
+        gradeSignOffs,
+        notificationSettings,
+      });
+    }, 900);
+    return () => window.clearTimeout(timer);
+  }, [
+    authToken,
+    authUser,
+    serverSyncMode,
+    conferences,
+    announcements,
+    shifts,
+    logbookEntries,
+    quotas,
+    epas,
+    evaluations,
+    researchProjects,
+    welfareRequests,
+    gradingConfigs,
+    studentScores,
+    facultySubmissions,
+    leaveRequests,
+    preceptorFeedbacks,
+    clinicalSkills,
+    roomBookings,
+    referenceMaterials,
+    referenceCheckouts,
+    bedsideCheckIns,
+    approvedPeerReviewDomains,
+    peerReviewEntries,
+    customQrStations,
+    departments,
+    exams,
+    courseGrades,
+    rooms,
+    cpgProtocols,
+    rotationBlocks,
+    gradeSignOffs,
+    notificationSettings,
   ]);
 
   const showToast = (msg: string) => {
@@ -596,6 +718,40 @@ export default function App() {
     };
   };
 
+  const appendAuditEntry = (
+    category: AuditLogCategory,
+    action: string,
+    targetLabel: string,
+    detail: string
+  ) => {
+    const actorName = authUser?.displayName ?? 'ระบบพอร์ทัล';
+    const actorUsername = authUser?.username ?? 'system';
+    const actorRole = authUser?.role ?? 'admin';
+    const now = new Date();
+    const timestampLabel = new Intl.DateTimeFormat('th-TH', {
+      timeZone: 'Asia/Bangkok',
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(now);
+    const localEntry: AuditLogEntry = {
+      id: `aud-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      isoTimestamp: now.toISOString(),
+      timestampLabel,
+      actorName,
+      actorUsername,
+      actorRole,
+      category,
+      action,
+      targetLabel,
+      detail,
+    };
+    setAuditLogs((prev) => [localEntry, ...prev].slice(0, 500));
+    void recordServerAuditLog(authToken, { category, action, targetLabel, detail });
+  };
+
   const runAdminOnly = <Args extends unknown[]>(
     actionLabel: string,
     handler: (...args: Args) => void
@@ -607,6 +763,7 @@ export default function App() {
         );
         return;
       }
+      appendAuditEntry('admin_crud', actionLabel, 'Admin Back-Office', `แก้ไขข้อมูลผ่านระบบหลังบ้าน: ${actionLabel}`);
       handler(...args);
     };
   };
@@ -631,12 +788,50 @@ export default function App() {
     setActiveTab('overview');
     setAuthModalOpen(false);
     showToast(`เข้าสู่ระบบในนาม ${user.displayName} (@${user.username}) สำเร็จ`);
+
+    void fetchServerPortalState(token).then((syncRes) => {
+      if (!syncRes.supported) {
+        setServerSyncMode('local');
+        return;
+      }
+      setServerSyncMode('server');
+      const s = syncRes.state ?? {};
+      if (Array.isArray(s.departments) && s.departments.length > 0) setDepartments(s.departments as ClinicalDepartment[]);
+      if (Array.isArray(s.gradingConfigs) && s.gradingConfigs.length > 0) setGradingConfigs(s.gradingConfigs as CourseGradingConfig[]);
+      if (Array.isArray(s.exams) && s.exams.length > 0) setExams(s.exams as OsceExam[]);
+      if (Array.isArray(s.evaluations) && s.evaluations.length > 0) setEvaluations(s.evaluations as OsceEvaluationRecord[]);
+      if (Array.isArray(s.studentScores) && s.studentScores.length > 0) setStudentScores(s.studentScores as StudentCourseScore[]);
+      if (Array.isArray(s.epas) && s.epas.length > 0) setEpas(s.epas as EpaMilestone[]);
+      if (Array.isArray(s.courseGrades) && s.courseGrades.length > 0) setCourseGrades(s.courseGrades as CourseGrade[]);
+      if (Array.isArray(s.conferences) && s.conferences.length > 0) setConferences(s.conferences as ConferenceEvent[]);
+      if (Array.isArray(s.announcements) && s.announcements.length > 0) setAnnouncements(s.announcements as Announcement[]);
+      if (Array.isArray(s.shifts) && s.shifts.length > 0) setShifts(s.shifts as DutyShift[]);
+      if (Array.isArray(s.leaveRequests) && s.leaveRequests.length > 0) setLeaveRequests(s.leaveRequests as LeaveRequest[]);
+      if (Array.isArray(s.roomBookings) && s.roomBookings.length > 0) setRoomBookings(s.roomBookings as RoomBooking[]);
+      if (Array.isArray(s.rooms) && s.rooms.length > 0) setRooms(s.rooms as RoomResource[]);
+      if (Array.isArray(s.quotas) && s.quotas.length > 0) setQuotas(s.quotas as ProcedureQuota[]);
+      if (Array.isArray(s.clinicalSkills) && s.clinicalSkills.length > 0) setClinicalSkills(s.clinicalSkills as ClinicalSkillMasteryItem[]);
+      if (Array.isArray(s.logbookEntries) && s.logbookEntries.length > 0) setLogbookEntries(s.logbookEntries as LogbookEntry[]);
+      if (Array.isArray(s.cpgProtocols) && s.cpgProtocols.length > 0) setCpgProtocols(s.cpgProtocols as CpgProtocol[]);
+      if (Array.isArray(s.referenceMaterials) && s.referenceMaterials.length > 0) setReferenceMaterials(s.referenceMaterials as ClinicalReferenceMaterial[]);
+      if (Array.isArray(s.researchProjects) && s.researchProjects.length > 0) setResearchProjects(s.researchProjects as ResearchProject[]);
+      if (Array.isArray(s.welfareRequests) && s.welfareRequests.length > 0) setWelfareRequests(s.welfareRequests as WelfareRequest[]);
+      if (Array.isArray(s.preceptorFeedbacks) && s.preceptorFeedbacks.length > 0) setPreceptorFeedbacks(s.preceptorFeedbacks as PreceptorFeedback[]);
+      if (Array.isArray(s.bedsideCheckIns) && s.bedsideCheckIns.length > 0) setBedsideCheckIns(s.bedsideCheckIns as BedsideCheckInRecord[]);
+      if (Array.isArray(s.customQrStations) && s.customQrStations.length > 0) setCustomQrStations(s.customQrStations as FacultyGeneratedQrStation[]);
+      if (Array.isArray(s.rotationBlocks)) setRotationBlocks(s.rotationBlocks as RotationScheduleBlock[]);
+      if (Array.isArray(s.gradeSignOffs)) setGradeSignOffs(s.gradeSignOffs as CourseGradeSignOff[]);
+      if (Array.isArray(syncRes.auditLogs) && syncRes.auditLogs.length > 0) {
+        setAuditLogs(syncRes.auditLogs);
+      }
+    });
   };
 
   const handleLogout = async () => {
     await logoutAccount(authToken);
     setAuthToken(null);
     setAuthUser(null);
+    setServerSyncMode('local');
     setLogbookModalOpen(false);
     setDirectoryModalOpen(false);
     setQuickSearchOpen(false);
@@ -1122,6 +1317,7 @@ export default function App() {
     setShifts((prev) =>
       prev.map((s) => (s.id === shiftId ? { ...s, swapStatus: 'approved' } : s))
     );
+    appendAuditEntry('roster', 'อนุมัติคำขอแลกเวร', shiftId, 'อนุมัติคำขอแลกเวรปฏิบัติงานหอผู้ป่วย');
     showToast('อนุมัติคำขอแลกเวรเรียบร้อยแล้ว');
   };
 
@@ -1148,6 +1344,12 @@ export default function App() {
   ) => {
     setLogbookEntries((prev) =>
       prev.map((item) => (item.id === id ? { ...item, status, feedback } : item))
+    );
+    appendAuditEntry(
+      'logbook',
+      status === 'approved' ? 'รับรอง E-Logbook' : 'ส่งกลับแก้ไข E-Logbook',
+      id,
+      feedback || `ปรับสถานะเป็น ${status}`
     );
     showToast(
       status === 'approved'
@@ -1307,12 +1509,132 @@ export default function App() {
           : row
       )
     );
+    appendAuditEntry(
+      'grading',
+      'ปรับโครงสร้างแบบประเมิน/เกณฑ์ตัดเกรด MPL',
+      updated.courseCode,
+      `MPL ${updated.mplPercent}% · strictMpl=${String(updated.strictMedicalMpl)}`
+    );
     showToast(`บันทึกการตั้งค่ารายวิชา ${updated.courseCode} เรียบร้อยแล้ว`);
   };
 
   const handleUpdateStudentScore = (updated: StudentCourseScore) => {
     setStudentScores((prev) =>
       prev.map((s) => (s.id === updated.id ? updated : s))
+    );
+    appendAuditEntry(
+      'grading',
+      'แก้ไขคะแนนนักศึกษา',
+      `${updated.studentId} (${updated.courseCode})`,
+      `OSCE: ${updated.osce ?? '-'} · Written: ${updated.writtenExam ?? '-'}`
+    );
+  };
+
+  const handleVerifyCourseGrades = (courseCode: string) => {
+    if (!authUser || !hasRoleAccess(authUser.role, true, ADMIN_OFFICER_ROLES)) {
+      showToast('จำกัดสิทธิ์: เฉพาะนักวิชาการประจำรายวิชาหรือแอดมินเท่านั้น');
+      return;
+    }
+    const cfg = gradingConfigs.find((c) => c.courseCode === courseCode);
+    const nowStr = '26 พ.ย. 2569';
+    setGradeSignOffs((prev) => {
+      const rest = prev.filter((s) => s.courseCode !== courseCode);
+      return [
+        {
+          courseCode,
+          courseName: cfg?.courseName ?? courseCode,
+          status: 'officer_verified',
+          verifiedBy: authUser.displayName,
+          verifiedAt: nowStr,
+        },
+        ...rest,
+      ];
+    });
+    appendAuditEntry(
+      'grading',
+      'ยืนยันตรวจสอบความถูกต้องคะแนนรายวิชา',
+      courseCode,
+      `ตรวจสอบโดย ${authUser.displayName}`
+    );
+    showToast(`ยืนยันตรวจสอบความถูกต้องคะแนนรายวิชา ${courseCode} แล้ว (รอประธานฯ ลงนาม)`);
+  };
+
+  const handleChairSignCourseGrades = (courseCode: string) => {
+    if (!authUser || !hasRoleAccess(authUser.role, true, ADMIN_ONLY_ROLES)) {
+      showToast('จำกัดสิทธิ์: เฉพาะแอดมิน / ประธานศูนย์แพทยฯ (ระดับ 3B) เท่านั้นที่ลงนามรับรองเกรดได้');
+      return;
+    }
+    const cfg = gradingConfigs.find((c) => c.courseCode === courseCode);
+    const nowStr = '26 พ.ย. 2569';
+    const refCode = `SURIN-2569-${courseCode.replace(/[^A-Z0-9]/gi, '')}-${Date.now()
+      .toString(36)
+      .toUpperCase()
+      .slice(-4)}`;
+    setGradeSignOffs((prev) => {
+      const existing = prev.find((s) => s.courseCode === courseCode);
+      const rest = prev.filter((s) => s.courseCode !== courseCode);
+      return [
+        {
+          courseCode,
+          courseName: cfg?.courseName ?? courseCode,
+          status: 'chair_signed',
+          verifiedBy: existing?.verifiedBy ?? authUser.displayName,
+          verifiedAt: existing?.verifiedAt ?? nowStr,
+          signedBy: authUser.displayName,
+          signedAt: nowStr,
+          verificationCode: refCode,
+        },
+        ...rest,
+      ];
+    });
+    appendAuditEntry(
+      'grading',
+      'ลงนามรับรองเกรดฉบับสมบูรณ์ (Final Chair Sign-off)',
+      courseCode,
+      `รหัสรับรอง ${refCode}`
+    );
+    showToast(`ลงนามรับรองผลการศึกษา ${courseCode} เรียบร้อยแล้ว (${refCode})`);
+  };
+
+  const handleReopenCourseGrades = (courseCode: string) => {
+    if (!authUser || !hasRoleAccess(authUser.role, true, ADMIN_ONLY_ROLES)) {
+      showToast('จำกัดสิทธิ์: เฉพาะแอดมิน (ระดับ 3B) เท่านั้นที่เปิดแก้ไขเกรดที่รับรองแล้วได้');
+      return;
+    }
+    const cfg = gradingConfigs.find((c) => c.courseCode === courseCode);
+    setGradeSignOffs((prev) => {
+      const rest = prev.filter((s) => s.courseCode !== courseCode);
+      return [
+        {
+          courseCode,
+          courseName: cfg?.courseName ?? courseCode,
+          status: 'draft',
+        },
+        ...rest,
+      ];
+    });
+    appendAuditEntry(
+      'grading',
+      'เปิดแก้ไขเกรดรายวิชาใหม่อีกครั้ง',
+      courseCode,
+      'คืนสถานะจากลงนามรับรองแล้วเป็นฉบับร่าง'
+    );
+    showToast(`คืนสถานะรายวิชา ${courseCode} เป็นฉบับร่างเรียบร้อยแล้ว`);
+  };
+
+  const handlePublishBlocksToShifts = (
+    newShifts: DutyShift[],
+    year: AcademicYearLevel
+  ) => {
+    setShifts((prev) => [...newShifts, ...prev]);
+    appendAuditEntry(
+      'rotation',
+      'เผยแพร่ตารางหมุนเวียนลงตารางเวรปฏิบัติงาน',
+      `ชั้นปีที่ ${year}`,
+      `เพิ่มรายการเวรอัตโนมัติ ${newShifts.length} รายการ`
+    );
+    showToast(
+      `เผยแพร่ตารางหมุนเวียนชั้นปีที่ ${year} ลงปฏิทินเวร ${newShifts.length} รายการแล้ว`
     );
   };
 
@@ -1446,6 +1768,7 @@ export default function App() {
     setLeaveRequests((prev) =>
       prev.map((l) => (l.id === leaveId ? { ...l, status } : l))
     );
+    appendAuditEntry('roster', `พิจารณาใบลา: ${status}`, leaveId, `ปรับสถานะใบลาเป็น ${status}`);
     showToast(
       status === 'อนุมัติแล้ว'
         ? 'อนุมัติใบลาปฏิบัติงานเรียบร้อยแล้ว'
@@ -2031,6 +2354,121 @@ export default function App() {
     showToast('รีเซ็ตข้อมูลพอร์ทัลทั้งหมดกลับเป็นค่าเริ่มต้นเรียบร้อยแล้ว');
   };
 
+  const portalNotifications = useMemo<PortalNotificationItem[]>(() => {
+    if (!notificationSettings.enableInAppAlerts) return [];
+    const readSet = new Set(readNotificationIds);
+    const list: PortalNotificationItem[] = [];
+
+    const pendingShifts = shifts.filter(
+      (s) =>
+        !s.checkedInAt &&
+        (activeRole === 'student' ? s.assignedStudent === activeStudentName : true)
+    );
+    if (pendingShifts.length > 0) {
+      const first = pendingShifts[0];
+      const id = `notif-shift-${first.id}`;
+      list.push({
+        id,
+        category: 'shift',
+        title: `มีเวรปฏิบัติงานรอลงเวลา ${pendingShifts.length} รายการ`,
+        detail: `${first.department} · ${first.wardOrUnit} (${first.date} ${first.timeRange} น.)`,
+        timeLabel: first.date,
+        urgent: true,
+        targetTab: 'curriculum',
+        read: readSet.has(id),
+      });
+    }
+
+    const pendingSwaps = shifts.filter((s) => s.swapStatus === 'requested');
+    if (pendingSwaps.length > 0) {
+      const id = `notif-swap-${pendingSwaps.length}`;
+      list.push({
+        id,
+        category: 'leave',
+        title: `คำขอแลกเวรรอพิจารณา ${pendingSwaps.length} รายการ`,
+        detail: `${pendingSwaps[0].assignedStudent} · ${pendingSwaps[0].wardOrUnit}`,
+        timeLabel: pendingSwaps[0].date,
+        targetTab: 'curriculum',
+        read: readSet.has(id),
+      });
+    }
+
+    const pendingLeaves = leaveRequests.filter((l) => l.status === 'รออนุมัติ');
+    if (pendingLeaves.length > 0 && activeRole !== 'student') {
+      const id = `notif-leave-${pendingLeaves.length}`;
+      list.push({
+        id,
+        category: 'leave',
+        title: `ใบลาปฏิบัติงานรออนุมัติ ${pendingLeaves.length} ฉบับ`,
+        detail: `${pendingLeaves[0].studentName} (${pendingLeaves[0].leaveType} · ${pendingLeaves[0].dateRange})`,
+        timeLabel: pendingLeaves[0].submittedAt,
+        targetTab: 'curriculum',
+        read: readSet.has(id),
+      });
+    }
+
+    if (pendingLogbookCount > 0) {
+      const id = `notif-logbook-${pendingLogbookCount}`;
+      list.push({
+        id,
+        category: 'logbook',
+        title:
+          activeRole === 'student'
+            ? `E-Logbook ของคุณรออาจารย์รับรอง ${pendingLogbookCount} เคส`
+            : `มีเคส E-Logbook รอตรวจรับรอง ${pendingLogbookCount} รายการ`,
+        detail: 'ตรวจสอบความถูกต้องของ ICD-10 และข้อคิดเห็นเชิงสะท้อน (Reflection)',
+        timeLabel: 'ล่าสุด',
+        targetTab: 'logbook',
+        read: readSet.has(id),
+      });
+    }
+
+    announcements
+      .filter((a) => a.urgent)
+      .slice(0, 2)
+      .forEach((ann) => {
+        const id = `notif-ann-${ann.id}`;
+        list.push({
+          id,
+          category: 'announcement',
+          title: `ประกาศด่วน: ${ann.title}`,
+          detail: ann.summary,
+          timeLabel: ann.date,
+          urgent: true,
+          targetTab: 'overview',
+          read: readSet.has(id),
+        });
+      });
+
+    exams
+      .filter((ex) => ex.status === 'กำลังจะมาถึง')
+      .slice(0, 2)
+      .forEach((ex) => {
+        const id = `notif-exam-${ex.id}`;
+        list.push({
+          id,
+          category: 'exam',
+          title: `กำหนดการสอบใกล้ถึง: ${ex.title}`,
+          detail: `${ex.date} เวลา ${ex.time} น. · ${ex.location}`,
+          timeLabel: ex.date,
+          targetTab: 'assessment',
+          read: readSet.has(id),
+        });
+      });
+
+    return list;
+  }, [
+    notificationSettings.enableInAppAlerts,
+    readNotificationIds,
+    shifts,
+    activeRole,
+    activeStudentName,
+    leaveRequests,
+    pendingLogbookCount,
+    announcements,
+    exams,
+  ]);
+
   return (
     <div className="min-h-screen flex flex-col bg-clinical-canvas text-[#0F172A]">
       <Header
@@ -2073,6 +2511,19 @@ export default function App() {
             showToast('จำกัดสิทธิ์: ระบบหลังบ้านเข้าถึงได้เฉพาะบัญชีแอดมิน (ระดับ 3B) เท่านั้น');
           }
         }}
+        authToken={authToken}
+        serverSyncMode={serverSyncMode}
+        notifications={portalNotifications}
+        onMarkNotificationRead={(id) =>
+          setReadNotificationIds((prev) => (prev.includes(id) ? prev : [...prev, id]))
+        }
+        onMarkAllNotificationsRead={() =>
+          setReadNotificationIds(portalNotifications.map((n) => n.id))
+        }
+        onNavigateTab={setActiveTab}
+        notificationSettings={notificationSettings}
+        onSaveNotificationSettings={setNotificationSettings}
+        onNotify={showToast}
       />
 
       <main className="flex-1 max-w-[1280px] w-full mx-auto px-4 sm:px-6 py-8 sm:py-10">
@@ -2153,6 +2604,18 @@ export default function App() {
                 onOpenStudentDirectory={() => {
                   if (activeRole !== 'student') setDirectoryModalOpen(true);
                 }}
+                rotationBlocks={rotationBlocks}
+                onSaveRotationBlocks={(blocks) => {
+                  setRotationBlocks(blocks);
+                  appendAuditEntry(
+                    'rotation',
+                    'อัปเดตเมทริกซ์ตารางหมุนเวียน',
+                    `${blocks.length} บล็อก`,
+                    'บันทึกตารางหมุนเวียนกลุ่มงานคลินิก'
+                  );
+                }}
+                onPublishBlocksToShifts={handlePublishBlocksToShifts}
+                onNotify={showToast}
               />
             )}
 
@@ -2217,6 +2680,11 @@ export default function App() {
                 onSubmitBatchForms={handleSubmitBatchForms}
                 preceptorFeedbacks={preceptorFeedbacks}
                 onAddPreceptorFeedback={handleAddPreceptorFeedback}
+                gradeSignOffs={gradeSignOffs}
+                onVerifyCourseGrades={handleVerifyCourseGrades}
+                onChairSignCourseGrades={handleChairSignCourseGrades}
+                onReopenCourseGrades={handleReopenCourseGrades}
+                auditLogs={auditLogs}
                 onNotify={showToast}
               />
             )}

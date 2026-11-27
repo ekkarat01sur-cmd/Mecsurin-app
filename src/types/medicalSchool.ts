@@ -325,11 +325,13 @@ export interface LeaveRequest {
 export interface PreceptorFeedback {
   id: string;
   department: string;
+  courseCode?: string;
   preceptorName: string;
   rotationPeriod: string;
   teachingScore: number; // 1-5
   feedbackScore: number; // 1-5
   atmosphereScore: number; // 1-5
+  safetyCultureScore?: number; // 1-5
   comment: string;
   submittedAt: string;
 }
@@ -574,4 +576,80 @@ export interface FacultyGeneratedQrStation {
   isActive: boolean;
   checkInCount: number;
 }
+
+export type AuditLogCategory =
+  | 'grading'
+  | 'logbook'
+  | 'roster'
+  | 'rotation'
+  | 'admin_crud'
+  | 'auth';
+
+export interface AuditLogEntry {
+  id: string;
+  isoTimestamp: string;
+  timestampLabel: string;
+  actorName: string;
+  actorUsername: string;
+  actorRole: UserRole;
+  category: AuditLogCategory;
+  action: string;
+  targetLabel: string;
+  detail: string;
+}
+
+export interface CourseGradeSignOff {
+  courseCode: string;
+  courseName: string;
+  status: 'draft' | 'officer_verified' | 'chair_signed';
+  verifiedBy?: string;
+  verifiedAt?: string;
+  signedBy?: string;
+  signedAt?: string;
+  verificationCode?: string;
+  note?: string;
+}
+
+export type NotificationCategory =
+  | 'shift'
+  | 'leave'
+  | 'logbook'
+  | 'exam'
+  | 'announcement';
+
+export interface PortalNotificationItem {
+  id: string;
+  category: NotificationCategory;
+  title: string;
+  detail: string;
+  timeLabel: string;
+  urgent?: boolean;
+  targetTab: ActiveTab;
+  read: boolean;
+}
+
+export interface NotificationChannelSettings {
+  enableInAppAlerts: boolean;
+  enableBrowserPush: boolean;
+  webhookEnabled: boolean;
+  webhookUrl: string;
+  alertBeforeShiftHours: number;
+}
+
+export interface RotationScheduleBlock {
+  id: string;
+  academicYear: AcademicYearLevel;
+  groupName: string;
+  departmentCode: string;
+  departmentName: string;
+  blockIndex: number;
+  startDateIso: string;
+  endDateIso: string;
+  weeks: number;
+  supervisingStaff: string;
+  studentNames: string[];
+  hasHolidayOverlap?: boolean;
+  holidayNote?: string;
+}
+
 
