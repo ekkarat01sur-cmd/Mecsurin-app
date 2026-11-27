@@ -40,7 +40,7 @@ export function MobileBottomNav({
   return (
     <nav
       aria-label="แถบนำทางสำหรับสมาร์ทโฟนและแท็บเล็ต"
-      className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-[#091A32]/95 backdrop-blur-xl border-t border-white/10 pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_20px_rgba(9,26,50,0.28)]"
+      className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-gradient-to-r from-[#04193E]/95 via-[#08347A]/95 to-[#0A3E8F]/95 backdrop-blur-xl border-t border-sky-300/20 pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_22px_rgba(4,25,62,0.35)]"
     >
       <div className="grid grid-cols-5 items-stretch">
         {MOBILE_TABS.map((item) => {
@@ -54,19 +54,19 @@ export function MobileBottomNav({
               className={`relative min-h-[54px] px-1 py-1.5 flex flex-col items-center justify-center gap-0.5 transition-colors cursor-pointer ${
                 isActive
                   ? 'text-white font-semibold'
-                  : 'text-slate-400 hover:text-slate-200'
+                  : 'text-sky-200/70 hover:text-white'
               }`}
               aria-current={isActive ? 'page' : undefined}
             >
               {isActive && (
                 <span
-                  className="absolute top-0 inset-x-3 h-[2.5px] bg-[#2DD4BF] rounded-b-xs"
+                  className="absolute top-0 inset-x-3 h-[2.5px] bg-gradient-to-r from-[#38BDF8] to-[#FBBF24] rounded-b-xs"
                   aria-hidden="true"
                 />
               )}
               <Icon
                 className={`w-5 h-5 shrink-0 ${
-                  isActive ? 'text-[#2DD4BF]' : 'text-slate-400'
+                  isActive ? 'text-[#38BDF8]' : 'text-sky-200/70'
                 }`}
                 aria-hidden="true"
               />

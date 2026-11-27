@@ -10,8 +10,8 @@
   html {
     font-family: var(--font-sans);
     scroll-behavior: smooth;
-    background-color: #f2f6fb;
-    color: #0f172a;
+    background-color: #ecf4ff;
+    color: #091e42;
     -webkit-font-smoothing: antialiased;
     -webkit-text-size-adjust: 100%;
     overflow-x: clip;
@@ -39,7 +39,7 @@
   }
 
   ::selection {
-    background-color: #0d9488;
+    background-color: #0284c7;
     color: #ffffff;
   }
 
@@ -52,26 +52,143 @@
   input:focus-visible,
   select:focus-visible,
   textarea:focus-visible {
-    outline: 2px solid #0d9488;
+    outline: 2px solid #0ea5e9;
     outline-offset: 2px;
   }
 }
 
+/* Futuristic Medical Royal-Cobalt & Ice-Cyan Canvas */
 .bg-clinical-canvas {
-  background-color: #f2f6fb;
+  background-color: #ecf4ff;
   background-image:
-    radial-gradient(at 15% 0%, rgba(13, 148, 136, 0.06) 0px, transparent 48%),
-    radial-gradient(at 88% 4%, rgba(15, 42, 74, 0.06) 0px, transparent 45%),
-    radial-gradient(rgba(15, 42, 74, 0.055) 1px, transparent 1px);
-  background-size: 100% 100%, 100% 100%, 24px 24px;
+    radial-gradient(at 12% 0%, rgba(14, 165, 233, 0.14) 0px, transparent 52%),
+    radial-gradient(at 88% 6%, rgba(8, 52, 122, 0.13) 0px, transparent 48%),
+    radial-gradient(at 50% 95%, rgba(56, 189, 248, 0.09) 0px, transparent 50%),
+    radial-gradient(rgba(8, 52, 122, 0.065) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 100%, 100% 100%, 24px 24px;
 }
 
 .clinical-surface {
-  background-color: #ffffff;
-  border: 1px solid rgba(15, 42, 74, 0.09);
+  background-color: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(14, 95, 216, 0.13);
   box-shadow:
-    0 1px 2px rgba(9, 26, 50, 0.03),
-    0 10px 26px -16px rgba(9, 26, 50, 0.12);
+    0 1px 2px rgba(6, 36, 88, 0.04),
+    0 14px 34px -18px rgba(8, 52, 122, 0.18);
+  transition:
+    transform 200ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 200ms cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.clinical-surface-interactive:hover {
+  transform: translateY(-2px);
+  border-color: rgba(14, 165, 233, 0.38);
+  box-shadow:
+    0 4px 12px rgba(8, 52, 122, 0.07),
+    0 20px 38px -18px rgba(14, 165, 233, 0.28);
+}
+
+/* Deep Royal Blue Futuristic Medical Gradient Surface */
+.med-hero-surface {
+  background: linear-gradient(135deg, #04183b 0%, #073070 50%, #0d58cf 100%);
+}
+
+.med-hex-grid {
+  background-image:
+    linear-gradient(rgba(56, 189, 248, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(56, 189, 248, 0.08) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+.med-gold-hairline {
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    rgba(245, 158, 11, 0.15) 0%,
+    #f59e0b 28%,
+    #fde047 50%,
+    #f59e0b 72%,
+    rgba(245, 158, 11, 0.15) 100%
+  );
+}
+
+/* Smooth GPU-composited animations */
+@keyframes med-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes med-ecg-sweep {
+  0% {
+    stroke-dashoffset: 520;
+    opacity: 0.45;
+  }
+  40% {
+    opacity: 1;
+  }
+  100% {
+    stroke-dashoffset: 0;
+    opacity: 0.75;
+  }
+}
+
+@keyframes med-scan-beam {
+  0% {
+    transform: translateX(-120%) skewX(-18deg);
+    opacity: 0;
+  }
+  20% {
+    opacity: 0.45;
+  }
+  80% {
+    opacity: 0.45;
+  }
+  100% {
+    transform: translateX(220%) skewX(-18deg);
+    opacity: 0;
+  }
+}
+
+@keyframes med-float-subtle {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+.animate-med-fade-up {
+  animation: med-fade-up 380ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-med-fade-up-delay-1 {
+  animation: med-fade-up 440ms cubic-bezier(0.16, 1, 0.3, 1) 70ms both;
+}
+
+.animate-med-fade-up-delay-2 {
+  animation: med-fade-up 480ms cubic-bezier(0.16, 1, 0.3, 1) 140ms both;
+}
+
+.animate-med-ecg {
+  stroke-dasharray: 520;
+  animation: med-ecg-sweep 3.2s cubic-bezier(0.25, 0.46, 0.45, 0.94) infinite;
+}
+
+.animate-med-scan {
+  animation: med-scan-beam 7.5s ease-in-out infinite;
+}
+
+.animate-med-float {
+  animation: med-float-subtle 4.5s ease-in-out infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {

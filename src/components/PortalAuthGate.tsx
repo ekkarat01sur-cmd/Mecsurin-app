@@ -157,50 +157,76 @@ export function PortalAuthGate({ onAuthenticated }: PortalAuthGateProps) {
   }, [directory, roleFilter, directorySearch]);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 animate-med-fade-up">
       {/* Institutional Auth Banner */}
-      <section className="rounded-2xl bg-[#091A32] text-white p-6 sm:p-8 border border-[#0F2A4A] shadow-xl">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-          <div className="space-y-2 max-w-2xl">
-            <div className="inline-flex items-center gap-2 text-xs font-semibold tracking-wide text-[#5EEAD4]">
-              <Lock className="w-4 h-4" aria-hidden="true" />
-              <span>การเข้าถึงข้อมูลแบบจำกัดสิทธิ์ตามตัวตน (Login-Gated Access Control)</span>
-            </div>
-            <h1 className="font-serif text-2xl sm:text-3xl font-bold tracking-tight text-white">
-              ศูนย์แพทยศาสตรศึกษาชั้นคลินิก โรงพยาบาลสุรินทร์
-            </h1>
-            <p className="text-sm text-slate-300 leading-relaxed">
-              ข้อมูลผลประเมิน คะแนนเกรด E-Logbook ตารางเวรหอผู้ป่วย และระบบจัดการสมาชิกถูกแยกตามระดับสิทธิ์อย่างเคร่งครัด
-              กรุณาลงชื่อเข้าสู่ระบบด้วย Username และ Password ประจำบุคคลเพื่อเข้าถึงข้อมูลในระดับสิทธิ์ของท่าน
-            </p>
-          </div>
+      <section className="rounded-2xl overflow-hidden border border-[#0D58CF]/25 shadow-[0_22px_50px_-22px_rgba(4,24,59,0.55)]">
+        <div className="med-hero-surface text-white p-6 sm:p-8 relative overflow-hidden">
+          <div className="absolute inset-0 med-hex-grid opacity-55 pointer-events-none" aria-hidden="true" />
+          <div
+            className="absolute inset-y-0 left-0 w-36 bg-gradient-to-r from-transparent via-[#38BDF8]/15 to-transparent pointer-events-none animate-med-scan"
+            aria-hidden="true"
+          />
 
-          <div className="grid grid-cols-2 gap-3 shrink-0 lg:w-[340px]">
-            <div className="rounded-xl bg-white/5 border border-white/10 p-3.5">
-              <div className="text-[11px] text-slate-400">การแยกสิทธิ์</div>
-              <div className="text-base font-bold text-white mt-0.5 tabular-nums">4 ระดับ</div>
-              <div className="text-[11px] text-[#5EEAD4] mt-0.5">ระดับ 1 – 3B</div>
-            </div>
-            <div className="rounded-xl bg-white/5 border border-white/10 p-3.5">
-              <div className="text-[11px] text-slate-400">บัญชีในระบบ</div>
-              <div className="text-base font-bold text-white mt-0.5 tabular-nums">
-                {loadingStatus ? '...' : `${directory.length} บัญชี`}
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
+            <div className="space-y-2.5 max-w-2xl">
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="inline-flex items-center gap-2 text-xs font-semibold tracking-wide text-[#7DD3FC]">
+                  <Lock className="w-4 h-4" aria-hidden="true" />
+                  <span>การเข้าถึงข้อมูลแบบจำกัดสิทธิ์ตามตัวตน (Login-Gated Access Control)</span>
+                </div>
+                <svg
+                  viewBox="0 0 120 24"
+                  className="w-20 h-4 text-[#38BDF8] shrink-0"
+                  fill="none"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M0 12 H28 L34 12 L38 4 L43 20 L48 8 L53 15 L57 12 H88 L93 5 L98 18 L103 12 H120"
+                    stroke="currentColor"
+                    strokeWidth="1.75"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="animate-med-ecg"
+                  />
+                </svg>
               </div>
-              <div className="text-[11px] text-[#5EEAD4] mt-0.5">ยืนยันตัวตนก่อนใช้งาน</div>
+              <h1 className="font-serif text-2xl sm:text-3xl font-bold tracking-tight text-white">
+                ศูนย์แพทยศาสตรศึกษาชั้นคลินิก โรงพยาบาลสุรินทร์
+              </h1>
+              <p className="text-sm text-sky-100/90 leading-relaxed">
+                ข้อมูลผลประเมิน คะแนนเกรด E-Logbook ตารางเวรหอผู้ป่วย และระบบจัดการสมาชิกถูกแยกตามระดับสิทธิ์อย่างเคร่งครัด
+                กรุณาลงชื่อเข้าสู่ระบบด้วย Username และ Password ประจำบุคคลเพื่อเข้าถึงข้อมูลในระดับสิทธิ์ของท่าน
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 shrink-0 lg:w-[340px]">
+              <div className="rounded-xl bg-white/10 backdrop-blur-xs border border-sky-200/20 p-3.5">
+                <div className="text-[11px] text-sky-200">การแยกสิทธิ์</div>
+                <div className="text-base font-bold text-white mt-0.5 tabular-nums">4 ระดับ</div>
+                <div className="text-[11px] text-[#7DD3FC] mt-0.5">ระดับ 1 – 3B</div>
+              </div>
+              <div className="rounded-xl bg-white/10 backdrop-blur-xs border border-sky-200/20 p-3.5">
+                <div className="text-[11px] text-sky-200">บัญชีในระบบ</div>
+                <div className="text-base font-bold text-white mt-0.5 tabular-nums">
+                  {loadingStatus ? '...' : `${directory.length} บัญชี`}
+                </div>
+                <div className="text-[11px] text-[#7DD3FC] mt-0.5">ยืนยันตัวตนก่อนใช้งาน</div>
+              </div>
             </div>
           </div>
         </div>
+        <div className="med-gold-hairline" aria-hidden="true" />
       </section>
 
       {/* Static Host Info Banner (GitHub Pages / Static Hosting local Web Crypto mode) */}
       {staticHostMode && (
-        <div className="rounded-xl bg-sky-50 border border-sky-200 p-4 flex items-start gap-3">
-          <AlertTriangle className="w-4 h-4 text-sky-700 shrink-0 mt-0.5" aria-hidden="true" />
-          <div className="space-y-0.5 text-xs text-sky-900">
+        <div className="rounded-xl bg-sky-50/90 border border-sky-200 p-4 flex items-start gap-3">
+          <AlertTriangle className="w-4 h-4 text-[#0284C7] shrink-0 mt-0.5" aria-hidden="true" />
+          <div className="space-y-0.5 text-xs text-[#04183B]">
             <div className="font-semibold">
               กำลังทำงานในโหมดเบราว์เซอร์สำหรับโฮสต์ Static (เช่น GitHub Pages)
             </div>
-            <p className="text-sky-800 leading-relaxed">
+            <p className="text-[#08347A] leading-relaxed">
               ระบบได้เปิดใช้งานการยืนยันตัวตนและจัดการสมาชิก (CRUD) ผ่าน Web Crypto (PBKDF2) บนเบราว์เซอร์ให้โดยอัตโนมัติ
               ท่านสามารถตั้งรหัสผ่าน <span className="font-mono font-semibold">admin</span> และเข้าสู่ระบบได้ทันที
             </p>
@@ -212,17 +238,17 @@ export function PortalAuthGate({ onAuthenticated }: PortalAuthGateProps) {
       {!adminConfigured && (
         <form
           onSubmit={handleFirstRunAdminSetup}
-          className="clinical-surface rounded-2xl p-6 bg-teal-50/60 border border-teal-200 space-y-4"
+          className="clinical-surface rounded-2xl p-6 bg-sky-50/70 border border-sky-200 space-y-4"
         >
           <div className="flex items-start gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[#0F766E] text-white flex items-center justify-center shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-[#08347A] text-[#38BDF8] flex items-center justify-center shrink-0">
               <ShieldCheck className="w-5 h-5" aria-hidden="true" />
             </div>
             <div>
-              <div className="text-xs font-semibold text-[#0F766E]">
+              <div className="text-xs font-semibold text-[#0284C7]">
                 ตั้งค่าความปลอดภัยเริ่มต้น (First-Run Administrator Setup)
               </div>
-              <h2 className="text-base sm:text-lg font-semibold text-slate-900 mt-0.5">
+              <h2 className="text-base sm:text-lg font-semibold text-[#04183B] mt-0.5">
                 กำหนดรหัสผ่านแรกเข้าสำหรับผู้ดูแลระบบ (Username: <span className="font-mono">admin</span>)
               </h2>
               <p className="text-xs text-slate-600 mt-1">
@@ -267,9 +293,9 @@ export function PortalAuthGate({ onAuthenticated }: PortalAuthGateProps) {
           <button
             type="submit"
             disabled={submitting}
-            className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-[#0F766E] rounded-lg hover:bg-[#0D625B] cursor-pointer disabled:opacity-60"
+            className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-[#08347A] rounded-lg hover:bg-[#0D58CF] transition-colors cursor-pointer disabled:opacity-60"
           >
-            <KeyRound className="w-4 h-4" aria-hidden="true" />
+            <KeyRound className="w-4 h-4 text-[#38BDF8]" aria-hidden="true" />
             <span>{submitting ? 'กำลังตั้งค่า...' : 'ตั้งรหัส admin และเข้าสู่ระบบ'}</span>
           </button>
         </form>
@@ -279,14 +305,14 @@ export function PortalAuthGate({ onAuthenticated }: PortalAuthGateProps) {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         <form
           onSubmit={handleLogin}
-          className="lg:col-span-5 clinical-surface rounded-2xl p-6 space-y-4"
+          className="lg:col-span-5 clinical-surface clinical-surface-interactive rounded-2xl p-6 space-y-4"
         >
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-lg bg-[#091A32] text-[#5EEAD4] flex items-center justify-center shrink-0">
+            <div className="w-9 h-9 rounded-lg bg-[#08347A] text-[#38BDF8] flex items-center justify-center shrink-0 shadow-xs">
               <LogIn className="w-4 h-4" aria-hidden="true" />
             </div>
             <div>
-              <h2 className="text-base font-semibold text-slate-900">
+              <h2 className="text-base font-semibold text-[#04183B]">
                 เข้าสู่ระบบ (Sign In)
               </h2>
               <p className="text-xs text-slate-500">
@@ -342,7 +368,7 @@ export function PortalAuthGate({ onAuthenticated }: PortalAuthGateProps) {
           <button
             type="submit"
             disabled={submitting}
-            className="w-full py-2.5 text-sm font-semibold text-white bg-[#091A32] rounded-lg hover:bg-[#0F2A4A] transition-colors cursor-pointer disabled:opacity-50"
+            className="w-full py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-[#08347A] to-[#0D58CF] rounded-lg hover:from-[#0A3E91] hover:to-[#0284C7] transition-all duration-200 shadow-[0_6px_18px_-6px_rgba(8,52,122,0.55)] cursor-pointer disabled:opacity-50"
           >
             {submitting ? 'กำลังตรวจสอบสิทธิ์...' : 'เข้าสู่ระบบ'}
           </button>
@@ -350,10 +376,10 @@ export function PortalAuthGate({ onAuthenticated }: PortalAuthGateProps) {
 
         {/* Public Username Directory (no clinical/score data exposed) */}
         <div className="lg:col-span-7 clinical-surface rounded-2xl overflow-hidden">
-          <div className="px-5 py-4 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="px-5 py-4 bg-sky-50/70 border-b border-sky-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <h3 className="text-sm font-semibold text-slate-900 flex items-center gap-1.5">
-                <UserCheck className="w-4 h-4 text-[#0D9488]" aria-hidden="true" />
+              <h3 className="text-sm font-semibold text-[#04183B] flex items-center gap-1.5">
+                <UserCheck className="w-4 h-4 text-[#0284C7]" aria-hidden="true" />
                 <span>รายชื่อ Username ในระบบ (คลิกเพื่อกรอกชื่อผู้ใช้)</span>
               </h3>
               <p className="text-[11px] text-slate-500 mt-0.5">
@@ -371,13 +397,13 @@ export function PortalAuthGate({ onAuthenticated }: PortalAuthGateProps) {
                   value={directorySearch}
                   onChange={(e) => setDirectorySearch(e.target.value)}
                   placeholder="ค้นหาชื่อ..."
-                  className="pl-8 pr-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded-lg w-36 sm:w-44"
+                  className="pl-8 pr-2.5 py-1.5 text-xs bg-white border border-sky-200 rounded-lg w-36 sm:w-44"
                 />
               </div>
               <select
                 value={roleFilter}
                 onChange={(e) => setRoleFilter(e.target.value as 'all' | UserRole)}
-                className="px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded-lg"
+                className="px-2.5 py-1.5 text-xs bg-white border border-sky-200 rounded-lg"
               >
                 <option value="all">ทุกบทบาท</option>
                 <option value="admin">แอดมิน (3B)</option>
@@ -388,7 +414,7 @@ export function PortalAuthGate({ onAuthenticated }: PortalAuthGateProps) {
             </div>
           </div>
 
-          <div className="divide-y divide-slate-200 max-h-[300px] overflow-y-auto">
+          <div className="divide-y divide-sky-100 max-h-[300px] overflow-y-auto">
             {filteredDirectory.length === 0 ? (
               <div className="px-5 py-8 text-center text-xs text-slate-500">
                 {loadingStatus
@@ -401,7 +427,7 @@ export function PortalAuthGate({ onAuthenticated }: PortalAuthGateProps) {
                   key={item.username}
                   type="button"
                   onClick={() => setUsername(item.username)}
-                  className="w-full px-5 py-2.5 text-left hover:bg-slate-50 flex items-center justify-between gap-3 cursor-pointer"
+                  className="w-full px-5 py-2.5 text-left hover:bg-sky-50/70 transition-colors flex items-center justify-between gap-3 cursor-pointer"
                 >
                   <div className="min-w-0">
                     <div className="text-xs font-semibold text-slate-900 truncate">
@@ -412,12 +438,12 @@ export function PortalAuthGate({ onAuthenticated }: PortalAuthGateProps) {
                     </div>
                   </div>
                   <div className="text-right shrink-0">
-                    <div className="font-mono text-xs font-semibold text-[#0F2A4A]">
+                    <div className="font-mono text-xs font-semibold text-[#08347A]">
                       {item.username}
                     </div>
                     <div className="text-[11px]">
                       {item.hasPasswordSet ? (
-                        <span className="text-emerald-700 font-medium">ตั้งรหัสแล้ว</span>
+                        <span className="text-[#0284C7] font-medium">ตั้งรหัสแล้ว</span>
                       ) : (
                         <span className="text-amber-700 font-medium">รอออกรหัส</span>
                       )}
@@ -432,17 +458,17 @@ export function PortalAuthGate({ onAuthenticated }: PortalAuthGateProps) {
 
       {/* 4 Access Levels Overview */}
       <section className="clinical-surface rounded-2xl p-6 space-y-4">
-        <div className="text-sm font-semibold text-slate-900">
+        <div className="text-sm font-semibold text-[#04183B]">
           โครงสร้างการแบ่งระดับการเข้าถึงข้อมูลหลังเข้าสู่ระบบ (Role-Based Access Control)
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {ACCESS_TIERS.map((tier) => (
             <div
               key={tier.role}
-              className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 space-y-1.5"
+              className="rounded-xl border border-sky-200/80 bg-gradient-to-b from-sky-50/70 to-white p-4 space-y-1.5 clinical-surface-interactive"
             >
-              <div className="text-xs font-semibold text-[#0F766E]">{tier.level}</div>
-              <div className="text-sm font-semibold text-slate-900">{tier.title}</div>
+              <div className="text-xs font-semibold text-[#0284C7]">{tier.level}</div>
+              <div className="text-sm font-semibold text-[#04183B]">{tier.title}</div>
               <p className="text-xs text-slate-600 leading-relaxed">{tier.scope}</p>
             </div>
           ))}

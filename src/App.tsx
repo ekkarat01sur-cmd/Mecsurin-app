@@ -2576,7 +2576,7 @@ export default function App() {
         {!isAuthenticated ? (
           <PortalAuthGate onAuthenticated={handleAuthenticated} />
         ) : (
-          <>
+          <div key={activeTab} className="animate-med-fade-up">
             {activeTab === 'overview' && (
               <OverviewSection
                 role={activeRole}
@@ -2775,7 +2775,7 @@ export default function App() {
                 onReturnMaterial={handleReturnMaterial}
               />
             )}
-          </>
+          </div>
         )}
       </main>
 
@@ -3009,7 +3009,7 @@ export default function App() {
         <div
           role="status"
           aria-live="polite"
-          className="fixed bottom-20 lg:bottom-5 right-4 lg:right-5 z-50 max-w-[calc(100vw-2rem)] bg-[#091A32] text-white text-sm font-medium px-4 py-3 rounded-xl shadow-xl border border-[#2DD4BF]/30"
+          className="fixed bottom-20 lg:bottom-5 right-4 lg:right-5 z-50 max-w-[calc(100vw-2rem)] bg-[#04183B] text-white text-sm font-medium px-4 py-3 rounded-xl shadow-[0_14px_30px_-8px_rgba(4,24,59,0.6)] border border-[#38BDF8]/40 animate-med-fade-up"
         >
           {toastMessage}
         </div>

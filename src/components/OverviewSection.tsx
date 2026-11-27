@@ -151,29 +151,54 @@ export function OverviewSection({
 
   return (
     <div className="space-y-10">
-      {/* Institutional Hero Split — Precision Midnight Navy & Surgical Teal */}
-      <section className="rounded-2xl overflow-hidden border border-[#0F2A4A]/20 shadow-[0_18px_45px_-22px_rgba(9,26,50,0.45)] bg-white">
-        <div className="grid grid-cols-1 lg:grid-cols-12 items-stretch bg-[#091A32]">
-          <div className="lg:col-span-6 p-6 sm:p-10 lg:p-12 flex flex-col justify-between bg-gradient-to-br from-[#08172E] via-[#0B2240] to-[#0F3153] text-white relative">
-            <div className="space-y-5">
-              <div className="text-xs font-semibold text-[#5EEAD4] tracking-wide">
-                โครงการผลิตแพทย์เพิ่มเพื่อชาวชนบท (CPIRD) · โรงพยาบาลสุรินทร์
+      {/* Institutional Hero Split — Futuristic Royal Cobalt, Cerulean Cyan & Surin Gold */}
+      <section className="rounded-2xl overflow-hidden border border-[#0D58CF]/25 shadow-[0_22px_50px_-22px_rgba(4,24,59,0.55)] bg-white animate-med-fade-up">
+        <div className="grid grid-cols-1 lg:grid-cols-12 items-stretch bg-[#04183B]">
+          <div className="lg:col-span-6 p-6 sm:p-10 lg:p-12 flex flex-col justify-between med-hero-surface text-white relative overflow-hidden">
+            {/* Subtle Holographic Grid & Scan Beam */}
+            <div className="absolute inset-0 med-hex-grid opacity-55 pointer-events-none" aria-hidden="true" />
+            <div
+              className="absolute inset-y-0 left-0 w-40 bg-gradient-to-r from-transparent via-[#38BDF8]/15 to-transparent pointer-events-none animate-med-scan"
+              aria-hidden="true"
+            />
+
+            <div className="space-y-5 relative z-10">
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="text-xs font-semibold text-[#7DD3FC] tracking-wide">
+                  โครงการผลิตแพทย์เพิ่มเพื่อชาวชนบท (CPIRD) · โรงพยาบาลสุรินทร์
+                </span>
+                {/* Animated ECG Waveform Motif */}
+                <svg
+                  viewBox="0 0 120 24"
+                  className="w-24 h-5 text-[#38BDF8] shrink-0"
+                  fill="none"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M0 12 H28 L34 12 L38 4 L43 20 L48 8 L53 15 L57 12 H88 L93 5 L98 18 L103 12 H120"
+                    stroke="currentColor"
+                    strokeWidth="1.75"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="animate-med-ecg"
+                  />
+                </svg>
               </div>
 
-              <h1 className="font-serif text-3xl sm:text-4xl lg:text-[2.65rem] font-bold leading-[1.2] text-white [text-wrap:balance]">
+              <h1 className="font-serif text-3xl sm:text-4xl lg:text-[2.65rem] font-bold leading-[1.2] text-white [text-wrap:balance] drop-shadow-[0_2px_12px_rgba(4,24,59,0.55)]">
                 ศูนย์แพทยศาสตรศึกษาชั้นคลินิก โรงพยาบาลสุรินทร์
               </h1>
 
-              <p className="text-base text-slate-200 leading-relaxed max-w-xl">
+              <p className="text-base text-sky-100/90 leading-relaxed max-w-xl">
                 ศูนย์กลางการเรียนการสอนชั้นคลินิก (ชั้นปีที่ 4–6) มุ่งผลิตบัณฑิตแพทย์ที่มีความเชี่ยวชาญทางคลินิกตามมาตรฐานแพทยสภา ยึดมั่นในจริยธรรมวิชาชีพ และเข้าใจบริบทสุขภาพชุมชนอีสานใต้
               </p>
             </div>
 
-            <div className="pt-8 flex flex-wrap items-center gap-3.5">
+            <div className="pt-8 flex flex-wrap items-center gap-3.5 relative z-10">
               <button
                 type="button"
                 onClick={onOpenNewLogbook}
-                className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-[#06202A] bg-[#2DD4BF] rounded-lg hover:bg-[#5EEAD4] transition-colors shadow-xs cursor-pointer whitespace-nowrap shrink-0"
+                className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-[#04183B] bg-gradient-to-r from-[#38BDF8] to-[#22D3EE] rounded-lg hover:from-[#7DD3FC] hover:to-[#67E8F9] transition-all duration-200 hover:-translate-y-0.5 shadow-[0_6px_20px_-4px_rgba(56,189,248,0.6)] cursor-pointer whitespace-nowrap shrink-0"
               >
                 บันทึกเคส E-Logbook
                 <ArrowRight className="w-4 h-4" aria-hidden="true" />
@@ -182,40 +207,42 @@ export function OverviewSection({
               <button
                 type="button"
                 onClick={() => onNavigateTab('curriculum')}
-                className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-white/10 border border-white/25 rounded-lg hover:bg-white/15 transition-colors cursor-pointer whitespace-nowrap shrink-0"
+                className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-white/10 border border-sky-200/30 rounded-lg hover:bg-white/20 hover:border-sky-200/50 transition-all duration-200 cursor-pointer whitespace-nowrap shrink-0"
               >
                 ดูปฏิทินตารางเวร
               </button>
             </div>
           </div>
 
-          <div className="lg:col-span-6 relative min-h-[280px] lg:min-h-[430px] bg-[#0B2240]">
+          <div className="lg:col-span-6 relative min-h-[280px] lg:min-h-[430px] bg-[#072B66] overflow-hidden group">
             <ResilientImage
               src={IMAGE_ASSETS.heroSurinMec}
               alt="อาคารศูนย์แพทยศาสตรศึกษาชั้นคลินิก โรงพยาบาลสุรินทร์ และนักศึกษาแพทย์ขณะปฏิบัติงาน"
-              className="w-full h-full lg:h-full object-cover"
+              className="w-full h-full lg:h-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.03]"
             />
             <div
-              className="hidden lg:block absolute inset-y-0 left-0 w-24 bg-gradient-to-r from-[#0F3153] to-transparent pointer-events-none"
+              className="hidden lg:block absolute inset-y-0 left-0 w-24 bg-gradient-to-r from-[#0D58CF]/85 to-transparent pointer-events-none"
               aria-hidden="true"
             />
-            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#08172E]/90 via-[#08172E]/45 to-transparent p-6 text-white">
-              <p className="text-xs text-slate-200">
+            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#04183B]/95 via-[#04183B]/55 to-transparent p-6 text-white">
+              <p className="text-xs text-sky-100">
                 ศูนย์การเรียนรู้ทางคลินิกและหุ่นจำลองอัจฉริยะ · โรงพยาบาลศูนย์ระดับตติยภูมิขนาด 1,000+ เตียง จังหวัดสุรินทร์
               </p>
             </div>
           </div>
         </div>
 
+        <div className="med-gold-hairline" aria-hidden="true" />
+
         {/* 4-Column Institutional Metrics Strip */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 border-t border-slate-200 divide-y lg:divide-y-0 lg:divide-x divide-slate-200 bg-white">
+        <div className="grid grid-cols-2 lg:grid-cols-4 divide-y lg:divide-y-0 lg:divide-x divide-sky-100 bg-white">
           <button
             type="button"
             onClick={() => onOpenPersonnelDirectory('student', 'ทั้งหมด')}
-            className="p-5 sm:p-6 text-left hover:bg-slate-50/80 transition-colors cursor-pointer"
+            className="p-5 sm:p-6 text-left hover:bg-sky-50/70 transition-colors cursor-pointer group"
           >
             <div className="text-xs font-medium text-slate-500">นักศึกษาแพทย์ชั้นคลินิก</div>
-            <div className="mt-1 text-2xl sm:text-3xl font-semibold text-[#091A32] tabular-nums">
+            <div className="mt-1 text-2xl sm:text-3xl font-semibold text-[#08347A] group-hover:text-[#0D58CF] transition-colors tabular-nums">
               {cohortStudents.length} คน
             </div>
             <div className="mt-1 text-xs text-slate-500 tabular-nums">
@@ -225,10 +252,10 @@ export function OverviewSection({
           <button
             type="button"
             onClick={() => onOpenPersonnelDirectory('preceptor', 'ทั้งหมด')}
-            className="p-5 sm:p-6 text-left border-l border-slate-200 lg:border-l-0 hover:bg-slate-50/80 transition-colors cursor-pointer"
+            className="p-5 sm:p-6 text-left border-l border-sky-100 lg:border-l-0 hover:bg-sky-50/70 transition-colors cursor-pointer group"
           >
             <div className="text-xs font-medium text-slate-500">แพทย์พี่เลี้ยง (Preceptors)</div>
-            <div className="mt-1 text-2xl sm:text-3xl font-semibold text-[#091A32] tabular-nums">
+            <div className="mt-1 text-2xl sm:text-3xl font-semibold text-[#08347A] group-hover:text-[#0D58CF] transition-colors tabular-nums">
               {preceptorCount} ท่าน
             </div>
             <div className="mt-1 text-xs text-slate-500">ครอบคลุมทุกกลุ่มงานคลินิกหลัก</div>
@@ -236,19 +263,19 @@ export function OverviewSection({
           <button
             type="button"
             onClick={() => onOpenPersonnelDirectory('intern', 'ทั้งหมด')}
-            className="p-5 sm:p-6 text-left hover:bg-slate-50/80 transition-colors cursor-pointer"
+            className="p-5 sm:p-6 text-left hover:bg-sky-50/70 transition-colors cursor-pointer group"
           >
             <div className="text-xs font-medium text-slate-500">แพทย์ Intern & แพทย์ประจำบ้าน</div>
-            <div className="mt-1 text-2xl sm:text-3xl font-semibold text-[#091A32] tabular-nums">
+            <div className="mt-1 text-2xl sm:text-3xl font-semibold text-[#08347A] group-hover:text-[#0D58CF] transition-colors tabular-nums">
               {internCount + residentCount} ท่าน
             </div>
             <div className="mt-1 text-xs text-slate-500 tabular-nums">
               Intern {internCount} ท่าน · ประจำบ้าน {residentCount} ท่าน
             </div>
           </button>
-          <div className="p-5 sm:p-6 border-l border-slate-200 lg:border-l-0">
+          <div className="p-5 sm:p-6 border-l border-sky-100 lg:border-l-0">
             <div className="text-xs font-medium text-slate-500">ผลสอบประมวลความรู้ ศรว. ขั้นที่ 3</div>
-            <div className="mt-1 text-2xl sm:text-3xl font-semibold text-[#0F766E] tabular-nums">
+            <div className="mt-1 text-2xl sm:text-3xl font-semibold text-[#0284C7] tabular-nums">
               98.6%
             </div>
             <div className="mt-1 text-xs text-slate-500">อัตราการสอบผ่านรุ่นปีการศึกษา 2568</div>
@@ -257,7 +284,7 @@ export function OverviewSection({
       </section>
 
       {/* Student Profile Card & Cohort Portrait Directory Strip */}
-      <section className="clinical-surface rounded-2xl p-6 sm:p-7">
+      <section className="clinical-surface clinical-surface-interactive rounded-2xl p-6 sm:p-7 animate-med-fade-up-delay-1">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="flex items-start sm:items-center gap-4 sm:gap-5">
             <StudentAvatar
@@ -267,12 +294,12 @@ export function OverviewSection({
               size="xl"
             />
             <div className="space-y-1">
-              <div className="text-xs font-medium text-[#0F766E]">
+              <div className="text-xs font-semibold text-[#0284C7]">
                 {isBackOfficeManager
                   ? 'ฐานข้อมูลทำเนียบนักศึกษาและรูปถ่ายประจำตัว'
                   : 'ข้อมูลนักศึกษาแพทย์ประจำตัว (Clinical Student Profile)'}
               </div>
-              <h2 className="text-lg sm:text-xl font-semibold text-slate-900">
+              <h2 className="text-lg sm:text-xl font-semibold text-[#04183B]">
                 {currentStudentName}
               </h2>
               <div className="text-xs sm:text-sm text-slate-600 flex flex-wrap items-center gap-x-2.5 gap-y-1 tabular-nums">
@@ -287,9 +314,9 @@ export function OverviewSection({
                 <span>อาจารย์ที่ปรึกษา: นพ.เอกรัตน์ วัฒนสุรินทร์</span>
               </div>
               <div className="pt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600 tabular-nums">
-                <span>GPAX สะสม: <strong className="text-[#0F2A4A]">3.82</strong></span>
-                <span>E-Logbook รับรองแล้ว: <strong className="text-emerald-700">{approvedLogbookCount} เคส</strong></span>
-                <span>Learning Streak: <strong className="text-amber-800">{learningStreak.currentStreakDays} วัน ({learningStreak.totalPoints.toLocaleString('th-TH')} คะแนน)</strong></span>
+                <span>GPAX สะสม: <strong className="text-[#08347A]">3.82</strong></span>
+                <span>E-Logbook รับรองแล้ว: <strong className="text-[#0284C7]">{approvedLogbookCount} เคส</strong></span>
+                <span>Learning Streak: <strong className="text-amber-700">{learningStreak.currentStreakDays} วัน ({learningStreak.totalPoints.toLocaleString('th-TH')} คะแนน)</strong></span>
                 <span>รูปถ่ายนักศึกษาในระบบ: <strong className="text-slate-900">{uploadedPhotoCount}/{cohortStudents.length} คน</strong></span>
               </div>
 
@@ -303,8 +330,8 @@ export function OverviewSection({
                       badge.tier === 'gold'
                         ? 'bg-amber-50 border-amber-200 text-amber-900'
                         : badge.tier === 'teal'
-                          ? 'bg-emerald-50/70 border-emerald-200 text-[#0F766E]'
-                          : 'bg-slate-50 border-slate-200 text-[#0F2A4A]'
+                          ? 'bg-sky-50 border-sky-200 text-[#0284C7]'
+                          : 'bg-indigo-50/70 border-indigo-200 text-[#08347A]'
                     }`}
                   >
                     <BadgeGlyph iconKey={badge.iconKey} className="w-3.5 h-3.5 shrink-0" />
@@ -314,7 +341,7 @@ export function OverviewSection({
                 <button
                   type="button"
                   onClick={() => onNavigateTab('curriculum')}
-                  className="inline-flex items-center gap-1 text-xs font-medium text-[#0F766E] hover:text-[#0D625C] underline underline-offset-2 cursor-pointer tabular-nums"
+                  className="inline-flex items-center gap-1 text-xs font-medium text-[#0284C7] hover:text-[#08347A] underline underline-offset-2 cursor-pointer tabular-nums"
                 >
                   <span>ดูเหรียญความสำเร็จ ({earnedBadges.length}/{badges.length})</span>
                   <ArrowRight className="w-3 h-3" aria-hidden="true" />
@@ -340,10 +367,10 @@ export function OverviewSection({
             <button
               type="button"
               onClick={onOpenStudentDirectory}
-              className={`inline-flex items-center gap-2 px-4 py-2.5 text-xs sm:text-sm font-medium rounded-lg transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
+              className={`inline-flex items-center gap-2 px-4 py-2.5 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 cursor-pointer whitespace-nowrap shrink-0 ${
                 isBackOfficeManager
-                  ? 'bg-[#0F2A4A] text-white hover:bg-[#163B66] shadow-xs'
-                  : 'bg-slate-50 text-[#0F2A4A] border border-slate-300 hover:bg-slate-100'
+                  ? 'bg-[#08347A] text-white hover:bg-[#0D58CF] shadow-xs'
+                  : 'bg-sky-50/80 text-[#08347A] border border-sky-200 hover:bg-sky-100'
               }`}
             >
               {isBackOfficeManager ? (
@@ -456,7 +483,7 @@ export function OverviewSection({
             <button
               type="button"
               onClick={() => onNavigateTab('curriculum')}
-              className="text-sm font-medium text-[#0F2A4A] hover:underline cursor-pointer whitespace-nowrap shrink-0"
+              className="text-sm font-medium text-[#0D58CF] hover:underline cursor-pointer whitespace-nowrap shrink-0"
             >
               ดูตารางเวรทั้งหมด
             </button>
@@ -496,8 +523,8 @@ export function OverviewSection({
                     onClick={() => onToggleConferenceCheckIn(conf.id)}
                     className={`inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-lg transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
                       conf.checkedIn
-                        ? 'bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100'
-                        : 'bg-[#0F2A4A] text-white hover:bg-[#163B66]'
+                        ? 'bg-sky-50 text-[#0284C7] border border-sky-200 hover:bg-sky-100'
+                        : 'bg-[#08347A] text-white hover:bg-[#0D58CF]'
                     }`}
                   >
                     {conf.checkedIn ? (
@@ -528,7 +555,7 @@ export function OverviewSection({
               <button
                 type="button"
                 onClick={() => setShowNewAnnForm((prev) => !prev)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[#0F2A4A] bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer whitespace-nowrap shrink-0"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[#08347A] bg-sky-50 hover:bg-sky-100 border border-sky-200/80 rounded-lg transition-colors cursor-pointer whitespace-nowrap shrink-0"
               >
                 <Plus className="w-3.5 h-3.5" aria-hidden="true" />
                 เพิ่มประกาศ
@@ -539,7 +566,7 @@ export function OverviewSection({
           {showNewAnnForm && (
             <form
               onSubmit={handleCreateAnnouncement}
-              className="mt-4 p-4 bg-slate-50 border border-slate-200 rounded-lg space-y-3"
+              className="mt-4 p-4 bg-sky-50/50 border border-sky-200/80 rounded-lg space-y-3"
             >
               <input
                 type="text"
@@ -574,7 +601,7 @@ export function OverviewSection({
                 </button>
                 <button
                   type="submit"
-                  className="px-3.5 py-1.5 text-xs font-medium text-white bg-[#0F2A4A] rounded-lg hover:bg-[#163B66] cursor-pointer"
+                  className="px-3.5 py-1.5 text-xs font-medium text-white bg-[#08347A] rounded-lg hover:bg-[#0D58CF] cursor-pointer"
                 >
                   เผยแพร่ประกาศ
                 </button>
@@ -583,7 +610,7 @@ export function OverviewSection({
           )}
 
           {/* Filter tabs */}
-          <div className="mt-4 flex flex-wrap gap-1 p-1 bg-slate-100 rounded-lg">
+          <div className="mt-4 flex flex-wrap gap-1 p-1 bg-sky-50/80 rounded-lg border border-sky-100">
             {(['ทั้งหมด', 'วิชาการ', 'ตารางสอบ', 'หอพักและสวัสดิการ'] as const).map((cat) => (
               <button
                 key={cat}
@@ -591,7 +618,7 @@ export function OverviewSection({
                 onClick={() => setAnnFilter(cat)}
                 className={`px-2.5 py-1.5 text-xs font-medium rounded-md transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
                   annFilter === cat
-                    ? 'bg-white text-[#0F2A4A] shadow-xs'
+                    ? 'bg-white text-[#08347A] shadow-xs'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
@@ -628,10 +655,10 @@ export function OverviewSection({
       </section>
 
       {/* Clinical Learning Facilities & Training Environment */}
-      <section className="space-y-6">
+      <section className="space-y-6 animate-med-fade-up-delay-2">
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
           <div>
-            <h2 className="font-serif text-2xl font-bold text-slate-900">
+            <h2 className="font-serif text-2xl font-bold text-[#04183B]">
               สภาพแวดล้อมการเรียนรู้และทักษะทางคลินิก
             </h2>
             <p className="text-sm text-slate-600 mt-1">
@@ -641,25 +668,25 @@ export function OverviewSection({
           <button
             type="button"
             onClick={() => onNavigateTab('assessment')}
-            className="text-sm font-medium text-[#0F2A4A] hover:underline cursor-pointer whitespace-nowrap shrink-0 self-start sm:self-auto"
+            className="text-sm font-medium text-[#0D58CF] hover:underline cursor-pointer whitespace-nowrap shrink-0 self-start sm:self-auto"
           >
             เข้าสู่ระบบประเมิน OSCE และ EPA
           </button>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="clinical-surface rounded-2xl overflow-hidden flex flex-col transition-transform duration-200 hover:-translate-y-0.5">
-            <div className="aspect-[4/3] bg-slate-100 overflow-hidden">
+          <div className="clinical-surface clinical-surface-interactive rounded-2xl overflow-hidden flex flex-col group">
+            <div className="aspect-[4/3] bg-sky-50 overflow-hidden">
               <ResilientImage
                 src={IMAGE_ASSETS.clinicalSkillsSim}
                 alt="ศูนย์ทักษะทางคลินิกและหุ่นจำลองทางการแพทย์ (Simulation Center)"
-                className="w-full h-full object-cover"
+                className="w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.03]"
               />
             </div>
             <div className="p-5 space-y-2 flex-1 flex flex-col justify-between">
               <div className="space-y-1.5">
-                <div className="text-xs font-medium text-[#0F766E]">ชั้น 3 อาคารศูนย์แพทยฯ · 12 ห้องสถานีสอบ</div>
-                <h3 className="text-base font-semibold text-slate-900">
+                <div className="text-xs font-semibold text-[#0284C7]">ชั้น 3 อาคารศูนย์แพทยฯ · 12 ห้องสถานีสอบ</div>
+                <h3 className="text-base font-semibold text-[#04183B]">
                   ศูนย์ทักษะทางคลินิกและสถานการณ์จำลอง (Simulation & OSCE Center)
                 </h3>
                 <p className="text-sm text-slate-600 leading-relaxed">
@@ -669,25 +696,25 @@ export function OverviewSection({
               <button
                 type="button"
                 onClick={() => onNavigateTab('assessment')}
-                className="mt-4 pt-3 border-t border-slate-100 text-left text-xs font-semibold text-[#0F2A4A] hover:text-[#0F766E] transition-colors cursor-pointer"
+                className="mt-4 pt-3 border-t border-sky-100 text-left text-xs font-semibold text-[#08347A] hover:text-[#0284C7] transition-colors cursor-pointer"
               >
                 ดูตารางสอบ OSCE และเกณฑ์ประเมิน →
               </button>
             </div>
           </div>
 
-          <div className="clinical-surface rounded-2xl overflow-hidden flex flex-col transition-transform duration-200 hover:-translate-y-0.5">
-            <div className="aspect-[4/3] bg-slate-100 overflow-hidden">
+          <div className="clinical-surface clinical-surface-interactive rounded-2xl overflow-hidden flex flex-col group">
+            <div className="aspect-[4/3] bg-sky-50 overflow-hidden">
               <ResilientImage
                 src={IMAGE_ASSETS.wardRoundTeaching}
                 alt="การสอนข้างเตียงผู้ป่วย (Bedside Teaching) โดยอาจารย์แพทย์โรงพยาบาลสุรินทร์"
-                className="w-full h-full object-cover"
+                className="w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.03]"
               />
             </div>
             <div className="p-5 space-y-2 flex-1 flex flex-col justify-between">
               <div className="space-y-1.5">
-                <div className="text-xs font-medium text-[#0F766E]">12 กลุ่มงานคลินิก · Bedside Teaching</div>
-                <h3 className="text-base font-semibold text-slate-900">
+                <div className="text-xs font-semibold text-[#0284C7]">12 กลุ่มงานคลินิก · Bedside Teaching</div>
+                <h3 className="text-base font-semibold text-[#04183B]">
                   การฝึกปฏิบัติงานบนหอผู้ป่วยและโรงพยาบาลชุมชนเครือข่าย
                 </h3>
                 <p className="text-sm text-slate-600 leading-relaxed">
@@ -697,25 +724,25 @@ export function OverviewSection({
               <button
                 type="button"
                 onClick={() => onNavigateTab('logbook')}
-                className="mt-4 pt-3 border-t border-slate-100 text-left text-xs font-semibold text-[#0F2A4A] hover:text-[#0F766E] transition-colors cursor-pointer"
+                className="mt-4 pt-3 border-t border-sky-100 text-left text-xs font-semibold text-[#08347A] hover:text-[#0284C7] transition-colors cursor-pointer"
               >
                 เปิดสมุดบันทึกประสบการณ์ E-Logbook →
               </button>
             </div>
           </div>
 
-          <div className="clinical-surface rounded-2xl overflow-hidden flex flex-col transition-transform duration-200 hover:-translate-y-0.5">
-            <div className="aspect-[4/3] bg-slate-100 overflow-hidden">
+          <div className="clinical-surface clinical-surface-interactive rounded-2xl overflow-hidden flex flex-col group">
+            <div className="aspect-[4/3] bg-sky-50 overflow-hidden">
               <ResilientImage
                 src={IMAGE_ASSETS.medicalLibraryStudy}
                 alt="ห้องสมุดทางการแพทย์และศูนย์วิจัยคลินิก รพ.สุรินทร์"
-                className="w-full h-full object-cover"
+                className="w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.03]"
               />
             </div>
             <div className="p-5 space-y-2 flex-1 flex flex-col justify-between">
               <div className="space-y-1.5">
-                <div className="text-xs font-medium text-[#0F766E]">เปิดบริการ 24 ชั่วโมง · UpToDate & ClinicalKey</div>
-                <h3 className="text-base font-semibold text-slate-900">
+                <div className="text-xs font-semibold text-[#0284C7]">เปิดบริการ 24 ชั่วโมง · UpToDate & ClinicalKey</div>
+                <h3 className="text-base font-semibold text-[#04183B]">
                   ห้องสมุดวิทยาศาสตร์การแพทย์และศูนย์สนับสนุนการวิจัย R2R
                 </h3>
                 <p className="text-sm text-slate-600 leading-relaxed">
@@ -725,7 +752,7 @@ export function OverviewSection({
               <button
                 type="button"
                 onClick={() => onNavigateTab('library')}
-                className="mt-4 pt-3 border-t border-slate-100 text-left text-xs font-semibold text-[#0F2A4A] hover:text-[#0F766E] transition-colors cursor-pointer"
+                className="mt-4 pt-3 border-t border-sky-100 text-left text-xs font-semibold text-[#08347A] hover:text-[#0284C7] transition-colors cursor-pointer"
               >
                 เข้าสู่คลังแนวทางเวชปฏิบัติและวิจัย →
               </button>

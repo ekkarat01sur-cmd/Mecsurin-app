@@ -87,7 +87,7 @@ export function WorkspaceBar({
   const canSyncSheets = hasRoleAccess(role, isAuthenticated, ADMIN_OFFICER_ROLES);
 
   return (
-    <div className="bg-white/85 backdrop-blur-md border-b border-slate-200/80">
+    <div className="bg-white/85 backdrop-blur-md border-b border-sky-200/80">
       <div className="max-w-[1280px] mx-auto px-4 sm:px-6 py-2.5 flex flex-col gap-2.5">
         <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-3">
           {isAuthenticated && authUser ? (
@@ -100,13 +100,13 @@ export function WorkspaceBar({
                   size="xs"
                 />
               )}
-              <span className="inline-flex items-center gap-1 font-semibold text-[#0F2A4A]">
-                <Shield className="w-3.5 h-3.5 text-[#0D9488]" aria-hidden="true" />
+              <span className="inline-flex items-center gap-1 font-semibold text-[#08347A]">
+                <Shield className="w-3.5 h-3.5 text-[#0284C7]" aria-hidden="true" />
                 ระดับสิทธิ์ {profile.level}
               </span>
               <span aria-hidden="true" className="text-slate-300">·</span>
               <span className="font-semibold text-slate-900">{displayName}</span>
-              <span className="font-mono text-xs text-[#0F766E]">
+              <span className="font-mono text-xs text-[#0284C7]">
                 @{authUser.username}
               </span>
               <span aria-hidden="true" className="text-slate-300 hidden sm:inline">·</span>
@@ -116,7 +116,7 @@ export function WorkspaceBar({
                 authUser.assignedCourseCodes.length > 0 && (
                   <>
                     <span aria-hidden="true" className="text-slate-300">·</span>
-                    <span className="font-mono text-xs font-medium text-[#0F2A4A]">
+                    <span className="font-mono text-xs font-medium text-[#08347A]">
                       วิชาที่รับผิดชอบ: {authUser.assignedCourseCodes.join(', ')}
                     </span>
                   </>
@@ -131,22 +131,22 @@ export function WorkspaceBar({
               )}
               <span aria-hidden="true" className="text-slate-300">·</span>
               <span className="inline-flex items-center gap-1 text-xs text-slate-500">
-                <Cloud className="w-3.5 h-3.5 text-[#0D9488]" aria-hidden="true" />
+                <Cloud className="w-3.5 h-3.5 text-[#0284C7]" aria-hidden="true" />
                 {serverSyncMode === 'server' ? 'ฐานข้อมูลเซิร์ฟเวอร์กลาง' : 'บันทึกในเครื่อง'}
               </span>
               <span aria-hidden="true" className="text-slate-300">·</span>
               <button
                 type="button"
                 onClick={() => setShowMatrix((prev) => !prev)}
-                className="text-xs font-medium text-[#0F2A4A] hover:underline cursor-pointer"
+                className="text-xs font-medium text-[#08347A] hover:underline cursor-pointer"
               >
                 {showMatrix ? 'ซ่อนตารางสิทธิ์' : 'สิทธิ์เข้าถึงข้อมูล'}
               </button>
             </div>
           ) : (
             <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-xs sm:text-sm text-slate-600">
-              <span className="inline-flex items-center gap-1.5 font-semibold text-[#0F2A4A]">
-                <Lock className="w-3.5 h-3.5 text-[#0D9488]" aria-hidden="true" />
+              <span className="inline-flex items-center gap-1.5 font-semibold text-[#08347A]">
+                <Lock className="w-3.5 h-3.5 text-[#0284C7]" aria-hidden="true" />
                 ระบบจำกัดสิทธิ์ตามการเข้าสู่ระบบ (Login Required)
               </span>
               <span aria-hidden="true" className="text-slate-300 hidden sm:inline">·</span>
@@ -157,7 +157,7 @@ export function WorkspaceBar({
               <button
                 type="button"
                 onClick={() => setShowMatrix((prev) => !prev)}
-                className="text-xs font-medium text-[#0F2A4A] hover:underline cursor-pointer"
+                className="text-xs font-medium text-[#08347A] hover:underline cursor-pointer"
               >
                 {showMatrix ? 'ซ่อนตารางสิทธิ์' : 'ดูตารางระดับสิทธิ์'}
               </button>
@@ -201,7 +201,7 @@ export function WorkspaceBar({
                   <button
                     type="button"
                     onClick={onOpenSheetsSync}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 min-h-[36px] text-xs font-medium text-[#0F766E] bg-teal-50 hover:bg-teal-100/80 border border-teal-200 rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 min-h-[36px] text-xs font-medium text-[#0369A1] bg-sky-50 hover:bg-sky-100/80 border border-sky-200 rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer"
                   >
                     <FileSpreadsheet className="w-3.5 h-3.5" aria-hidden="true" />
                     <span>ซิงค์ Sheet</span>
@@ -214,8 +214,8 @@ export function WorkspaceBar({
                     onClick={onOpenStudentDirectory}
                     className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
                       isBackOfficeManager
-                        ? 'bg-[#0F2A4A] text-white border-[#0F2A4A] hover:bg-[#163B66]'
-                        : 'bg-white text-[#0F2A4A] border-slate-300 hover:bg-slate-50'
+                        ? 'bg-[#08347A] text-white border-[#08347A] hover:bg-[#0D47A1]'
+                        : 'bg-white text-[#08347A] border-sky-200 hover:bg-sky-50'
                     }`}
                   >
                     {isBackOfficeManager ? (
@@ -231,7 +231,7 @@ export function WorkspaceBar({
                   <button
                     type="button"
                     onClick={() => onOpenAuthModal('manage')}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-[#0F766E] hover:bg-[#0D625C] rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-gradient-to-r from-[#0284C7] to-[#0E7490] hover:from-[#0369A1] hover:to-[#0E7490] rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer"
                   >
                     <UserCog className="w-3.5 h-3.5" aria-hidden="true" />
                     <span>จัดการสมาชิก (CRUD)</span>
@@ -242,9 +242,9 @@ export function WorkspaceBar({
                   <button
                     type="button"
                     onClick={onOpenAdminBackOffice}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-[#091A32] hover:bg-[#13294B] border border-[#091A32] rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-[#04183B] hover:bg-[#08347A] border border-[#08347A] rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer"
                   >
-                    <Database className="w-3.5 h-3.5 text-[#2DD4BF]" aria-hidden="true" />
+                    <Database className="w-3.5 h-3.5 text-[#38BDF8]" aria-hidden="true" />
                     <span>ระบบหลังบ้าน (Admin)</span>
                   </button>
                 )}
@@ -269,7 +269,7 @@ export function WorkspaceBar({
               <button
                 type="button"
                 onClick={() => onOpenAuthModal('login')}
-                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-white bg-[#0F766E] hover:bg-[#0D625C] rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-white bg-gradient-to-r from-[#08347A] to-[#0284C7] hover:from-[#052357] hover:to-[#0369A1] rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer"
               >
                 <LogIn className="w-3.5 h-3.5" aria-hidden="true" />
                 <span>เข้าสู่ระบบ (Username/Password)</span>

@@ -64,25 +64,25 @@ const YEAR_META: Array<{
     year: '4',
     title: 'ชั้นปีที่ 4',
     subtitle: 'Junior Clinical Clerkship',
-    accentBg: 'bg-slate-100',
-    accentText: 'text-[#0F2A4A]',
-    barColor: 'bg-[#091A32]',
+    accentBg: 'bg-indigo-50',
+    accentText: 'text-[#08347A]',
+    barColor: 'bg-[#08347A]',
   },
   {
     year: '5',
     title: 'ชั้นปีที่ 5',
     subtitle: 'Senior Clinical Clerkship',
-    accentBg: 'bg-teal-50',
-    accentText: 'text-[#0F766E]',
-    barColor: 'bg-[#0D9488]',
+    accentBg: 'bg-sky-50',
+    accentText: 'text-[#0284C7]',
+    barColor: 'bg-[#0284C7]',
   },
   {
     year: '6',
     title: 'ชั้นปีที่ 6 (Extern)',
     subtitle: 'Clinical Externship',
-    accentBg: 'bg-sky-50',
-    accentText: 'text-[#0369A1]',
-    barColor: 'bg-[#1D4ED8]',
+    accentBg: 'bg-amber-50',
+    accentText: 'text-amber-800',
+    barColor: 'bg-gradient-to-r from-[#0EA5E9] to-[#38BDF8]',
   },
 ];
 
@@ -232,14 +232,14 @@ export function WorkforceCohortDashboard({
   };
 
   return (
-    <section className="clinical-surface rounded-2xl p-6 sm:p-7 space-y-8">
+    <section className="clinical-surface rounded-2xl p-6 sm:p-7 space-y-8 animate-med-fade-up-delay-1">
       {/* Header */}
-      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4 pb-5 border-b border-slate-200">
+      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4 pb-5 border-b border-sky-100">
         <div>
-          <div className="text-xs font-semibold text-[#0F766E]">
+          <div className="text-xs font-semibold text-[#0284C7]">
             แดชบอร์ดกำลังคนทางการแพทย์และนักศึกษา · ปีการศึกษา 2569
           </div>
-          <h2 className="font-serif text-xl sm:text-2xl font-bold text-slate-900 mt-1">
+          <h2 className="font-serif text-xl sm:text-2xl font-bold text-[#04183B] mt-1">
             สรุปยอดนักศึกษาแพทย์ทั้งหมด แยกตามชั้นปี และทำเนียบแพทย์ผู้ปฏิบัติงาน
           </h2>
           <p className="text-sm text-slate-600 mt-1">
@@ -251,9 +251,9 @@ export function WorkforceCohortDashboard({
           <button
             type="button"
             onClick={() => onOpenPersonnelDirectory('intern', 'ทั้งหมด')}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-[#091A32] hover:bg-[#0F2A4A] rounded-lg transition-colors cursor-pointer whitespace-nowrap shrink-0"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-[#08347A] hover:bg-[#0D58CF] rounded-lg transition-all duration-200 cursor-pointer whitespace-nowrap shrink-0 shadow-xs"
           >
-            <Users className="w-3.5 h-3.5 text-[#5EEAD4]" aria-hidden="true" />
+            <Users className="w-3.5 h-3.5 text-[#38BDF8]" aria-hidden="true" />
             <span>เปิดทำเนียบรายชื่อแพทย์ & นศพ.</span>
           </button>
 
@@ -261,7 +261,7 @@ export function WorkforceCohortDashboard({
             <button
               type="button"
               onClick={onOpenAdminBackOffice}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium text-[#0F766E] bg-teal-50 hover:bg-teal-100 border border-teal-200 rounded-lg transition-colors cursor-pointer whitespace-nowrap shrink-0"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium text-[#0284C7] bg-sky-50 hover:bg-sky-100 border border-sky-200 rounded-lg transition-colors cursor-pointer whitespace-nowrap shrink-0"
             >
               <Database className="w-3.5 h-3.5" aria-hidden="true" />
               <span>เพิ่ม / แก้ไขรายชื่อ</span>
@@ -273,14 +273,14 @@ export function WorkforceCohortDashboard({
       {/* Part 1: Total Medical Students + Year 4 / 5 / 6 Breakdown */}
       <div className="space-y-4">
         <div className="flex items-center justify-between gap-3">
-          <h3 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
-            <GraduationCap className="w-4 h-4 text-[#0F2A4A]" aria-hidden="true" />
+          <h3 className="text-sm font-semibold text-[#04183B] flex items-center gap-2">
+            <GraduationCap className="w-4 h-4 text-[#08347A]" aria-hidden="true" />
             <span>สรุปยอดนักศึกษาแพทย์ชั้นคลินิกทั้งหมด และแยกตามชั้นปี</span>
           </h3>
           <button
             type="button"
             onClick={() => onOpenPersonnelDirectory('student', 'ทั้งหมด')}
-            className="text-xs font-medium text-[#0F766E] hover:underline cursor-pointer whitespace-nowrap shrink-0"
+            className="text-xs font-medium text-[#0284C7] hover:underline cursor-pointer whitespace-nowrap shrink-0"
           >
             ดูรายชื่อนักศึกษาทั้งหมด ({totalStudents} คน) →
           </button>
@@ -288,21 +288,27 @@ export function WorkforceCohortDashboard({
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
           {/* Total Students Card */}
-          <div className="lg:col-span-4 rounded-xl bg-[#091A32] text-white p-5 flex flex-col justify-between gap-4">
-            <div className="space-y-2">
-              <div className="text-xs font-medium text-[#5EEAD4]">
+          <div className="lg:col-span-4 rounded-xl med-hero-surface text-white p-5 flex flex-col justify-between gap-4 relative overflow-hidden shadow-[0_14px_30px_-14px_rgba(8,52,122,0.55)]">
+            <div className="absolute inset-0 med-hex-grid opacity-55 pointer-events-none" aria-hidden="true" />
+            <div
+              className="absolute inset-y-0 left-0 w-28 bg-gradient-to-r from-transparent via-[#38BDF8]/15 to-transparent pointer-events-none animate-med-scan"
+              aria-hidden="true"
+            />
+
+            <div className="space-y-2 relative z-10">
+              <div className="text-xs font-medium text-[#7DD3FC]">
                 นักศึกษาแพทย์ชั้นคลินิกทั้งหมด (ปี 4–6)
               </div>
               <div className="text-3xl sm:text-4xl font-bold tabular-nums">
-                {totalStudents} <span className="text-base font-normal text-slate-300">คน</span>
+                {totalStudents} <span className="text-base font-normal text-sky-200">คน</span>
               </div>
-              <div className="text-xs text-slate-300 tabular-nums">
+              <div className="text-xs text-sky-100/90 tabular-nums">
                 กลุ่ม A: {groupTotals.A} คน · กลุ่ม B: {groupTotals.B} คน · กลุ่ม C: {groupTotals.C} คน
               </div>
             </div>
 
             {/* Combined proportional strip */}
-            <div className="space-y-2 pt-3 border-t border-white/15">
+            <div className="space-y-2 pt-3 border-t border-white/15 relative z-10">
               <div className="h-2.5 w-full rounded-md bg-white/10 overflow-hidden flex">
                 {studentByYear.map((yr) => (
                   <div
@@ -310,21 +316,21 @@ export function WorkforceCohortDashboard({
                     style={{ width: `${yr.pct}%` }}
                     className={
                       yr.year === '4'
-                        ? 'bg-[#60A5FA]'
+                        ? 'bg-[#38BDF8] transition-all duration-500'
                         : yr.year === '5'
-                          ? 'bg-[#2DD4BF]'
-                          : 'bg-[#FBBF24]'
+                          ? 'bg-[#22D3EE] transition-all duration-500'
+                          : 'bg-[#FBBF24] transition-all duration-500'
                     }
                     title={`${yr.title}: ${yr.count} คน (${yr.pct}%)`}
                   />
                 ))}
               </div>
-              <div className="flex items-center justify-between text-[11px] text-slate-300 tabular-nums">
+              <div className="flex items-center justify-between text-[11px] text-sky-100/90 tabular-nums">
                 <span>มีรูปถ่ายประจำตัวในระบบ {studentsWithPhoto}/{totalStudents} คน</span>
                 <button
                   type="button"
                   onClick={() => onOpenPersonnelDirectory('student', 'ทั้งหมด')}
-                  className="text-[#5EEAD4] hover:underline font-medium cursor-pointer"
+                  className="text-[#7DD3FC] hover:text-white hover:underline font-medium cursor-pointer"
                 >
                   ดูทั้งหมด →
                 </button>
@@ -337,7 +343,7 @@ export function WorkforceCohortDashboard({
             {studentByYear.map((yr) => (
               <div
                 key={yr.year}
-                className="rounded-xl border border-slate-200 bg-white p-5 flex flex-col justify-between gap-4 hover:border-slate-300 transition-colors"
+                className="rounded-xl border border-sky-200/80 bg-white p-5 flex flex-col justify-between gap-4 clinical-surface-interactive"
               >
                 <div className="space-y-2">
                   <div className="flex items-center justify-between gap-2">
@@ -348,15 +354,15 @@ export function WorkforceCohortDashboard({
                       {yr.pct}%
                     </span>
                   </div>
-                  <div className="text-2xl sm:text-3xl font-bold text-[#091A32] tabular-nums">
+                  <div className="text-2xl sm:text-3xl font-bold text-[#04183B] tabular-nums">
                     {yr.count} <span className="text-sm font-normal text-slate-500">คน</span>
                   </div>
                   <div className="text-xs text-slate-500">{yr.subtitle}</div>
                 </div>
 
-                <div className="space-y-2.5 pt-3 border-t border-slate-100">
-                  <div className="h-1.5 w-full rounded bg-slate-100 overflow-hidden">
-                    <div className={`h-full ${yr.barColor}`} style={{ width: `${yr.pct}%` }} />
+                <div className="space-y-2.5 pt-3 border-t border-sky-100">
+                  <div className="h-1.5 w-full rounded bg-sky-50 overflow-hidden">
+                    <div className={`h-full ${yr.barColor} transition-all duration-500`} style={{ width: `${yr.pct}%` }} />
                   </div>
                   <div className="flex items-center justify-between text-xs text-slate-600 tabular-nums">
                     <span>A: {yr.groupA} · B: {yr.groupB} · C: {yr.groupC}</span>
@@ -368,7 +374,7 @@ export function WorkforceCohortDashboard({
                           yr.year === '6' ? 'ชั้นปีที่ 6 (Extern)' : `ชั้นปีที่ ${yr.year}`
                         )
                       }
-                      className="inline-flex items-center gap-1 font-medium text-[#0F2A4A] hover:text-[#0F766E] cursor-pointer whitespace-nowrap"
+                      className="inline-flex items-center gap-1 font-medium text-[#08347A] hover:text-[#0284C7] cursor-pointer whitespace-nowrap"
                     >
                       <span>รายชื่อ</span>
                       <ArrowRight className="w-3 h-3" aria-hidden="true" />
@@ -382,10 +388,10 @@ export function WorkforceCohortDashboard({
       </div>
 
       {/* Part 2: Intern, Preceptor, Resident Summary + Department Chart */}
-      <div className="pt-6 border-t border-slate-200 space-y-5">
+      <div className="pt-6 border-t border-sky-100 space-y-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h3 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
-            <Stethoscope className="w-4 h-4 text-[#0F766E]" aria-hidden="true" />
+          <h3 className="text-sm font-semibold text-[#04183B] flex items-center gap-2">
+            <Stethoscope className="w-4 h-4 text-[#0284C7]" aria-hidden="true" />
             <span>
               สรุปยอดแพทย์ Intern · แพทย์พี่เลี้ยง · แพทย์ประจำบ้าน ({totalPersonnelCount} ท่าน)
             </span>
@@ -403,16 +409,16 @@ export function WorkforceCohortDashboard({
               return (
                 <div
                   key={cat.id}
-                  className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 sm:p-5 flex flex-col justify-between gap-4"
+                  className="rounded-xl border border-sky-200/80 bg-gradient-to-b from-sky-50/70 to-white p-4 sm:p-5 flex flex-col justify-between gap-4 clinical-surface-interactive"
                 >
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs font-semibold text-[#0F2A4A]">
+                      <span className="text-xs font-semibold text-[#08347A]">
                         {cat.title}
                       </span>
-                      <Icon className="w-4 h-4 text-[#0F766E] shrink-0" aria-hidden="true" />
+                      <Icon className="w-4 h-4 text-[#0284C7] shrink-0" aria-hidden="true" />
                     </div>
-                    <div className="text-2xl sm:text-3xl font-bold text-[#091A32] tabular-nums">
+                    <div className="text-2xl sm:text-3xl font-bold text-[#04183B] tabular-nums">
                       {cat.total}{' '}
                       <span className="text-xs font-normal text-slate-500">ท่าน</span>
                     </div>
@@ -422,16 +428,16 @@ export function WorkforceCohortDashboard({
                   </div>
 
                   {/* Per-year clickable breakdown */}
-                  <div className="space-y-1.5 pt-3 border-t border-slate-200/80">
+                  <div className="space-y-1.5 pt-3 border-t border-sky-100">
                     {cat.yearBreakdown.map((yb) => (
                       <button
                         key={yb.year}
                         type="button"
                         onClick={() => onOpenPersonnelDirectory(cat.id, yb.year)}
-                        className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-md bg-white border border-slate-200/80 hover:border-[#0F766E] text-xs transition-colors cursor-pointer tabular-nums"
+                        className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-md bg-white border border-sky-100 hover:border-[#0EA5E9] hover:bg-sky-50/60 text-xs transition-colors cursor-pointer tabular-nums"
                       >
                         <span className="text-slate-700 font-medium">{yb.year}</span>
-                        <span className="font-semibold text-[#0F766E]">
+                        <span className="font-semibold text-[#0284C7]">
                           {yb.count} ท่าน →
                         </span>
                       </button>
@@ -443,10 +449,10 @@ export function WorkforceCohortDashboard({
           </div>
 
           {/* Department Workforce Distribution Chart */}
-          <div className="lg:col-span-5 rounded-xl border border-slate-200 bg-white p-4 sm:p-5 flex flex-col justify-between">
+          <div className="lg:col-span-5 rounded-xl border border-sky-200/80 bg-white p-4 sm:p-5 flex flex-col justify-between">
             <div className="flex items-center justify-between gap-2 mb-3">
               <div>
-                <h4 className="text-xs font-semibold text-slate-900">
+                <h4 className="text-xs font-semibold text-[#04183B]">
                   สัดส่วนแพทย์ผู้ปฏิบัติงานแยกตามกลุ่มงานคลินิก
                 </h4>
                 <p className="text-[11px] text-slate-500">
@@ -461,7 +467,7 @@ export function WorkforceCohortDashboard({
                   data={deptChartData}
                   margin={{ top: 6, right: 8, left: -22, bottom: 8 }}
                 >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E0F2FE" vertical={false} />
                   <XAxis
                     dataKey="department"
                     tick={{ fontSize: 10, fill: '#475569' }}
@@ -478,13 +484,13 @@ export function WorkforceCohortDashboard({
                     contentStyle={{
                       fontSize: '12px',
                       borderRadius: '8px',
-                      border: '1px solid #E2E8F0',
+                      border: '1px solid #BAE6FD',
                     }}
                   />
                   <Legend wrapperStyle={{ fontSize: '11px' }} />
-                  <Bar dataKey="Intern" stackId="a" fill="#0D9488" radius={[0, 0, 0, 0]} />
-                  <Bar dataKey="แพทย์พี่เลี้ยง" stackId="a" fill="#091A32" radius={[0, 0, 0, 0]} />
-                  <Bar dataKey="แพทย์ประจำบ้าน" stackId="a" fill="#3B82F6" radius={[3, 3, 0, 0]} />
+                  <Bar dataKey="Intern" stackId="a" fill="#38BDF8" radius={[0, 0, 0, 0]} />
+                  <Bar dataKey="แพทย์พี่เลี้ยง" stackId="a" fill="#08347A" radius={[0, 0, 0, 0]} />
+                  <Bar dataKey="แพทย์ประจำบ้าน" stackId="a" fill="#0284C7" radius={[3, 3, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -493,9 +499,9 @@ export function WorkforceCohortDashboard({
       </div>
 
       {/* Part 3: Live Quick-Browse Roster & Basic Info Preview on Home Page */}
-      <div className="pt-6 border-t border-slate-200 space-y-4">
+      <div className="pt-6 border-t border-sky-100 space-y-4">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-1 p-1 bg-slate-100 rounded-lg border border-slate-200/70">
+          <div className="flex flex-wrap items-center gap-1 p-1 bg-sky-50/80 rounded-lg border border-sky-100">
             {(
               [
                 { id: 'intern', label: 'รายชื่อแพทย์ Intern' },
@@ -510,7 +516,7 @@ export function WorkforceCohortDashboard({
                 onClick={() => handlePreviewTabChange(t.id)}
                 className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
                   previewTab === t.id
-                    ? 'bg-white text-[#091A32] shadow-xs'
+                    ? 'bg-white text-[#08347A] shadow-xs'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
@@ -527,8 +533,8 @@ export function WorkforceCohortDashboard({
                 onClick={() => setPreviewYear(yr)}
                 className={`px-2.5 py-1 text-xs font-medium rounded-md border transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
                   previewYear === yr
-                    ? 'bg-[#091A32] text-white border-[#091A32]'
-                    : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                    ? 'bg-[#08347A] text-white border-[#08347A]'
+                    : 'bg-white text-slate-600 border-sky-200 hover:border-sky-300'
                 }`}
               >
                 {yr === 'ทั้งหมด' ? 'ทุกปี' : yr}
@@ -538,12 +544,12 @@ export function WorkforceCohortDashboard({
         </div>
 
         {/* Preview Table */}
-        <div className="border border-slate-200 rounded-xl overflow-hidden bg-white">
+        <div className="border border-sky-200/80 rounded-xl overflow-hidden bg-white">
           <div className="overflow-x-auto">
             {previewTab === 'student' ? (
               <table className="w-full text-left border-collapse text-xs sm:text-sm">
                 <thead>
-                  <tr className="bg-slate-50 border-b border-slate-200 text-xs font-medium text-slate-500">
+                  <tr className="bg-sky-50/80 border-b border-sky-100 text-xs font-medium text-[#08347A]">
                     <th className="py-2.5 px-4">รหัสนักศึกษา</th>
                     <th className="py-2.5 px-4">ชื่อ-สกุล</th>
                     <th className="py-2.5 px-4">ชั้นปี / กลุ่ม</th>
@@ -552,9 +558,9 @@ export function WorkforceCohortDashboard({
                     <th className="py-2.5 px-4">สถานะ</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-200">
+                <tbody className="divide-y divide-sky-100">
                   {(previewRows as CohortStudentRecord[]).map((s) => (
-                    <tr key={s.studentId} className="hover:bg-slate-50">
+                    <tr key={s.studentId} className="hover:bg-sky-50/50 transition-colors">
                       <td className="py-2.5 px-4 font-mono text-xs text-slate-600 tabular-nums">
                         {s.studentId}
                       </td>
@@ -578,7 +584,7 @@ export function WorkforceCohortDashboard({
                       <td className="py-2.5 px-4 text-xs text-slate-600 tabular-nums">
                         {s.contactInfo ?? 'หอพักนักศึกษาแพทย์ ศพค.'}
                       </td>
-                      <td className="py-2.5 px-4 text-xs font-medium text-[#0F766E] whitespace-nowrap">
+                      <td className="py-2.5 px-4 text-xs font-medium text-[#0284C7] whitespace-nowrap">
                         {s.status ?? 'ฝึกปฏิบัติคลินิก'}
                       </td>
                     </tr>
@@ -588,7 +594,7 @@ export function WorkforceCohortDashboard({
             ) : (
               <table className="w-full text-left border-collapse text-xs sm:text-sm">
                 <thead>
-                  <tr className="bg-slate-50 border-b border-slate-200 text-xs font-medium text-slate-500">
+                  <tr className="bg-sky-50/80 border-b border-sky-100 text-xs font-medium text-[#08347A]">
                     <th className="py-2.5 px-4">รหัส / เลข ว.</th>
                     <th className="py-2.5 px-4">ชื่อ-สกุล</th>
                     <th className="py-2.5 px-4">ชั้นปี / ระดับ</th>
@@ -597,12 +603,12 @@ export function WorkforceCohortDashboard({
                     <th className="py-2.5 px-4">เบอร์ติดต่อ / สถานะ</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-200">
+                <tbody className="divide-y divide-sky-100">
                   {(previewRows as ClinicalPersonnelRecord[]).map((p) => (
-                    <tr key={p.id} className="hover:bg-slate-50">
+                    <tr key={p.id} className="hover:bg-sky-50/50 transition-colors">
                       <td className="py-2.5 px-4 font-mono text-xs text-slate-600 tabular-nums whitespace-nowrap">
                         <div>{p.personnelCode}</div>
-                        <div className="text-[#0F766E]">{p.medicalLicenseNo}</div>
+                        <div className="text-[#0284C7]">{p.medicalLicenseNo}</div>
                       </td>
                       <td className="py-2.5 px-4">
                         <div className="font-medium text-slate-900">{p.fullName}</div>
@@ -610,7 +616,7 @@ export function WorkforceCohortDashboard({
                           {p.supervisingNote}
                         </div>
                       </td>
-                      <td className="py-2.5 px-4 text-xs font-medium text-[#0F2A4A] whitespace-nowrap">
+                      <td className="py-2.5 px-4 text-xs font-medium text-[#08347A] whitespace-nowrap">
                         {p.yearLevel}
                       </td>
                       <td className="py-2.5 px-4 text-xs">
@@ -625,10 +631,10 @@ export function WorkforceCohortDashboard({
                         <div
                           className={`font-medium ${
                             p.status === 'ปฏิบัติงานปกติ'
-                              ? 'text-emerald-700'
+                              ? 'text-[#0284C7]'
                               : p.status === 'ลาศึกษาต่อ/ประชุม'
                                 ? 'text-amber-700'
-                                : 'text-[#0F766E]'
+                                : 'text-[#08347A]'
                           }`}
                         >
                           {p.status}
@@ -641,14 +647,14 @@ export function WorkforceCohortDashboard({
             )}
           </div>
 
-          <div className="px-4 py-3 bg-slate-50 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
+          <div className="px-4 py-3 bg-sky-50/60 border-t border-sky-100 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
             <span className="tabular-nums">
               แสดงตัวอย่างรายชื่อ ({previewRows.length} รายการ) · ค้นหาและส่งออก CSV ได้ในหน้าต่างทำเนียบเต็ม
             </span>
             <button
               type="button"
               onClick={() => onOpenPersonnelDirectory(previewTab, previewYear)}
-              className="inline-flex items-center gap-1 font-semibold text-[#0F2A4A] hover:text-[#0F766E] cursor-pointer"
+              className="inline-flex items-center gap-1 font-semibold text-[#08347A] hover:text-[#0284C7] cursor-pointer"
             >
               <span>ดูรายชื่อทั้งหมดและข้อมูลพื้นฐานครบถ้วน</span>
               <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />
