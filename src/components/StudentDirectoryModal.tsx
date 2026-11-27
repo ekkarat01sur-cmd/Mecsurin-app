@@ -13,6 +13,7 @@ import {
 import {
   AcademicYearLevel,
   ClinicalMilestoneBadge,
+  CohortStudentRecord,
   StudentCourseScore,
   StudentPhotoMap,
   UserRole,
@@ -28,6 +29,7 @@ interface StudentDirectoryModalProps {
   role: UserRole;
   activeStudentId: string;
   activeBadges: ClinicalMilestoneBadge[];
+  cohortStudents?: CohortStudentRecord[];
   studentScores: StudentCourseScore[];
   studentPhotos: StudentPhotoMap;
   onUploadStudentPhoto: (studentId: string, dataUrl: string) => void;
@@ -70,6 +72,7 @@ export function StudentDirectoryModal({
   role,
   activeStudentId,
   activeBadges,
+  cohortStudents = COHORT_STUDENTS,
   studentScores,
   studentPhotos,
   onUploadStudentPhoto,
@@ -88,7 +91,7 @@ export function StudentDirectoryModal({
 
   const filteredStudents = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    return COHORT_STUDENTS.filter((student) => {
+    return cohortStudents.filter((student) => {
       const matchYear = yearFilter === 'all' || student.yearLevel === yearFilter;
       const matchGroup = groupFilter === 'ทั้งหมด' || student.group === groupFilter;
       const matchSearch =
@@ -97,9 +100,9 @@ export function StudentDirectoryModal({
         student.studentId.includes(q);
       return matchYear && matchGroup && matchSearch;
     });
-  }, [searchQuery, yearFilter, groupFilter]);
+  }, [cohortStudents, searchQuery, yearFilter, groupFilter]);
 
-  const uploadedCount = COHORT_STUDENTS.filter((s) => Boolean(studentPhotos[s.studentId])).length;
+  const uploadedCount = cohortStudents.filter((s) => Boolean(studentPhotos[s.studentId])).length;
 
   if (!isOpen) return null;
 
@@ -141,7 +144,7 @@ export function StudentDirectoryModal({
                 ทำเนียบนักศึกษาแพทย์และจัดการรูปถ่ายประจำตัว
               </h2>
               <p className="text-xs text-slate-500 mt-0.5 tabular-nums">
-                มีรูปถ่ายประจำตัวแล้ว {uploadedCount} / {COHORT_STUDENTS.length} คน · แสดงผลอัตโนมัติพร้อมเหรียญความสำเร็จทางคลินิก (Milestone Badges)
+                มีรูปถ่ายประจำตัวแล้ว {uploadedCount} / {cohortStudents.length} คน · แสดงผลอัตโนมัติพร้อมเหรียญความสำเร็จทางคลินิก (Milestone Badges)
               </p>
             </div>
           </div>

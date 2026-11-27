@@ -1743,6 +1743,8 @@ async function startServer(): Promise<void> {
     'rooms',
     'cpgProtocols',
     'referenceMaterials',
+    'clinicalPersonnel',
+    'cohortStudents',
   ]);
   const OFFICER_OR_ADMIN_STATE_KEYS = new Set([
     'gradingConfigs',

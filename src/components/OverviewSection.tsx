@@ -12,6 +12,8 @@ import {
   Announcement,
   BedsideCheckInRecord,
   ClinicalMilestoneBadge,
+  ClinicalPersonnelRecord,
+  CohortStudentRecord,
   ConferenceEvent,
   CourseGrade,
   CourseGradingConfig,
@@ -25,8 +27,9 @@ import {
   StudentPhotoMap,
   UserRole,
 } from '../types/medicalSchool';
-import { COHORT_STUDENTS, IMAGE_ASSETS } from '../data/initialMedicalData';
+import { IMAGE_ASSETS } from '../data/initialMedicalData';
 import { AcademicPortfolioSnapshot } from './AcademicPortfolioSnapshot';
+import { DirectoryCategoryTab } from './ClinicalPersonnelDirectoryPanel';
 import { BadgeGlyph } from './ClinicalMilestoneBadgesPanel';
 import { ClinicalCaseDensityMap } from './ClinicalCaseDensityMap';
 import { ClinicalCaseDiversityPanel } from './ClinicalCaseDiversityPanel';
@@ -36,14 +39,19 @@ import { NotificationsPanel } from './NotificationsPanel';
 import { ResilientImage } from './ResilientImage';
 import { StudentAvatar } from './StudentAvatar';
 import { WardRotationCalendar } from './WardRotationCalendar';
+import { WorkforceCohortDashboard } from './WorkforceCohortDashboard';
 
 interface OverviewSectionProps {
   role: UserRole;
   currentStudentId: string;
   currentStudentName?: string;
   authenticatedDisplayName?: string;
+  cohortStudents: CohortStudentRecord[];
+  clinicalPersonnel: ClinicalPersonnelRecord[];
   studentPhotos: StudentPhotoMap;
   onOpenStudentDirectory: () => void;
+  onOpenPersonnelDirectory: (category: DirectoryCategoryTab, yearFilter?: string) => void;
+  onOpenAdminBackOffice?: () => void;
   conferences: ConferenceEvent[];
   onToggleConferenceCheckIn: (id: string) => void;
   announcements: Announcement[];
@@ -72,8 +80,12 @@ export function OverviewSection({
   currentStudentId,
   currentStudentName = 'นศพ.ธนภัทร ศรีสุรินทร์',
   authenticatedDisplayName,
+  cohortStudents,
+  clinicalPersonnel,
   studentPhotos,
   onOpenStudentDirectory,
+  onOpenPersonnelDirectory,
+  onOpenAdminBackOffice,
   conferences,
   onToggleConferenceCheckIn,
   announcements,
@@ -124,11 +136,18 @@ export function OverviewSection({
   };
 
   const approvedLogbookCount = logbookEntries.filter((e) => e.status === 'approved').length;
-  const uploadedPhotoCount = COHORT_STUDENTS.filter((s) => Boolean(studentPhotos[s.studentId])).length;
-  const spotlightStudents = COHORT_STUDENTS.filter((s) => Boolean(studentPhotos[s.studentId])).slice(0, 6);
-  const activeStudent = COHORT_STUDENTS.find((s) => s.studentId === currentStudentId);
+  const uploadedPhotoCount = cohortStudents.filter((s) => Boolean(studentPhotos[s.studentId])).length;
+  const spotlightStudents = cohortStudents.filter((s) => Boolean(studentPhotos[s.studentId])).slice(0, 6);
+  const activeStudent = cohortStudents.find((s) => s.studentId === currentStudentId);
   const isBackOfficeManager = role === 'admin' || role === 'course_officer';
   const earnedBadges = badges.filter((b) => b.earned);
+
+  const year4Count = cohortStudents.filter((s) => s.yearLevel === '4').length;
+  const year5Count = cohortStudents.filter((s) => s.yearLevel === '5').length;
+  const year6Count = cohortStudents.filter((s) => s.yearLevel === '6').length;
+  const internCount = clinicalPersonnel.filter((p) => p.category === 'intern').length;
+  const preceptorCount = clinicalPersonnel.filter((p) => p.category === 'preceptor').length;
+  const residentCount = clinicalPersonnel.filter((p) => p.category === 'resident').length;
 
   return (
     <div className="space-y-10">
@@ -190,27 +209,43 @@ export function OverviewSection({
 
         {/* 4-Column Institutional Metrics Strip */}
         <div className="grid grid-cols-2 lg:grid-cols-4 border-t border-slate-200 divide-y lg:divide-y-0 lg:divide-x divide-slate-200 bg-white">
-          <div className="p-5 sm:p-6">
+          <button
+            type="button"
+            onClick={() => onOpenPersonnelDirectory('student', 'ทั้งหมด')}
+            className="p-5 sm:p-6 text-left hover:bg-slate-50/80 transition-colors cursor-pointer"
+          >
             <div className="text-xs font-medium text-slate-500">นักศึกษาแพทย์ชั้นคลินิก</div>
             <div className="mt-1 text-2xl sm:text-3xl font-semibold text-[#091A32] tabular-nums">
-              144 คน
+              {cohortStudents.length} คน
             </div>
-            <div className="mt-1 text-xs text-slate-500">ชั้นปีที่ 4, 5 และ Extern ปีที่ 6</div>
-          </div>
-          <div className="p-5 sm:p-6 border-l border-slate-200 lg:border-l-0">
-            <div className="text-xs font-medium text-slate-500">อาจารย์แพทย์ประจำศูนย์ฯ</div>
+            <div className="mt-1 text-xs text-slate-500 tabular-nums">
+              ปี 4: {year4Count} · ปี 5: {year5Count} · ปี 6: {year6Count}
+            </div>
+          </button>
+          <button
+            type="button"
+            onClick={() => onOpenPersonnelDirectory('preceptor', 'ทั้งหมด')}
+            className="p-5 sm:p-6 text-left border-l border-slate-200 lg:border-l-0 hover:bg-slate-50/80 transition-colors cursor-pointer"
+          >
+            <div className="text-xs font-medium text-slate-500">แพทย์พี่เลี้ยง (Preceptors)</div>
             <div className="mt-1 text-2xl sm:text-3xl font-semibold text-[#091A32] tabular-nums">
-              86 ท่าน
+              {preceptorCount} ท่าน
             </div>
             <div className="mt-1 text-xs text-slate-500">ครอบคลุมทุกกลุ่มงานคลินิกหลัก</div>
-          </div>
-          <div className="p-5 sm:p-6">
-            <div className="text-xs font-medium text-slate-500">กลุ่มงานและโรงพยาบาลเครือข่าย</div>
+          </button>
+          <button
+            type="button"
+            onClick={() => onOpenPersonnelDirectory('intern', 'ทั้งหมด')}
+            className="p-5 sm:p-6 text-left hover:bg-slate-50/80 transition-colors cursor-pointer"
+          >
+            <div className="text-xs font-medium text-slate-500">แพทย์ Intern & แพทย์ประจำบ้าน</div>
             <div className="mt-1 text-2xl sm:text-3xl font-semibold text-[#091A32] tabular-nums">
-              12 + 16 แห่ง
+              {internCount + residentCount} ท่าน
             </div>
-            <div className="mt-1 text-xs text-slate-500">12 กลุ่มงานหลัก · 16 รพ.ชุมชน</div>
-          </div>
+            <div className="mt-1 text-xs text-slate-500 tabular-nums">
+              Intern {internCount} ท่าน · ประจำบ้าน {residentCount} ท่าน
+            </div>
+          </button>
           <div className="p-5 sm:p-6 border-l border-slate-200 lg:border-l-0">
             <div className="text-xs font-medium text-slate-500">ผลสอบประมวลความรู้ ศรว. ขั้นที่ 3</div>
             <div className="mt-1 text-2xl sm:text-3xl font-semibold text-[#0F766E] tabular-nums">
@@ -255,7 +290,7 @@ export function OverviewSection({
                 <span>GPAX สะสม: <strong className="text-[#0F2A4A]">3.82</strong></span>
                 <span>E-Logbook รับรองแล้ว: <strong className="text-emerald-700">{approvedLogbookCount} เคส</strong></span>
                 <span>Learning Streak: <strong className="text-amber-800">{learningStreak.currentStreakDays} วัน ({learningStreak.totalPoints.toLocaleString('th-TH')} คะแนน)</strong></span>
-                <span>รูปถ่ายนักศึกษาในระบบ: <strong className="text-slate-900">{uploadedPhotoCount}/{COHORT_STUDENTS.length} คน</strong></span>
+                <span>รูปถ่ายนักศึกษาในระบบ: <strong className="text-slate-900">{uploadedPhotoCount}/{cohortStudents.length} คน</strong></span>
               </div>
 
               {/* Earned Clinical Milestone Seals */}
@@ -325,6 +360,16 @@ export function OverviewSection({
           </div>
         </div>
       </section>
+
+      {/* Workforce & Student Cohort Summary Dashboard (Total + By Year + Intern/Preceptor/Resident) */}
+      <WorkforceCohortDashboard
+        role={role}
+        cohortStudents={cohortStudents}
+        clinicalPersonnel={clinicalPersonnel}
+        studentPhotos={studentPhotos}
+        onOpenPersonnelDirectory={onOpenPersonnelDirectory}
+        onOpenAdminBackOffice={onOpenAdminBackOffice}
+      />
 
       {/* Student Notifications Panel (OSCE deadlines, Logbook feedback, Shift swap updates) */}
       <NotificationsPanel

@@ -652,4 +652,43 @@ export interface RotationScheduleBlock {
   holidayNote?: string;
 }
 
+export interface CohortStudentRecord {
+  studentId: string;
+  studentName: string;
+  yearLevel: AcademicYearLevel;
+  group: string;
+  advisorName?: string;
+  contactInfo?: string;
+  status?: 'กำลังศึกษา' | 'ฝึกปฏิบัติคลินิก' | 'พักการศึกษา';
+}
 
+export type ClinicalPersonnelCategory = 'intern' | 'preceptor' | 'resident';
+
+export type PersonnelYearTag =
+  | 'ปี 1'
+  | 'ปี 2'
+  | 'ปี 3'
+  | 'ดูแลปี 4'
+  | 'ดูแลปี 5'
+  | 'ดูแลปี 6 (Extern)'
+  | 'ประจำกลุ่มงาน';
+
+export interface ClinicalPersonnelRecord {
+  id: string;
+  personnelCode: string;
+  fullName: string;
+  category: ClinicalPersonnelCategory;
+  yearLevel: PersonnelYearTag;
+  department: string;
+  currentWard: string;
+  medicalLicenseNo: string;
+  institutionOrBoard: string;
+  phoneOrPager: string;
+  email?: string;
+  supervisingNote: string;
+  status:
+    | 'ปฏิบัติงานปกติ'
+    | 'หมุนเวียน รพ.ชุมชน'
+    | 'ออกตรวจ OPD / OR'
+    | 'ลาศึกษาต่อ/ประชุม';
+}

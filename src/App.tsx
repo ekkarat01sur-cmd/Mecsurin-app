@@ -8,8 +8,10 @@ import {
   AuthUserProfile,
   BedsideCheckInRecord,
   ClinicalDepartment,
+  ClinicalPersonnelRecord,
   ClinicalReferenceMaterial,
   ClinicalSkillMasteryItem,
+  CohortStudentRecord,
   ConferenceEvent,
   CourseGrade,
   CourseGradeSignOff,
@@ -51,6 +53,7 @@ import {
   INITIAL_ANNOUNCEMENTS,
   INITIAL_APPROVED_PEER_REVIEW_DOMAINS,
   INITIAL_BEDSIDE_CHECKINS,
+  INITIAL_CLINICAL_PERSONNEL,
   INITIAL_CLINICAL_SKILLS_MASTERY,
   INITIAL_CONFERENCES,
   INITIAL_COURSE_GRADES,
@@ -87,6 +90,8 @@ import { LibraryResearchSection } from './components/LibraryResearchSection';
 import { LogbookModal } from './components/LogbookModal';
 import { QuickSearchModal } from './components/QuickSearchModal';
 import { StudentDirectoryModal } from './components/StudentDirectoryModal';
+import { PersonnelDirectoryModal } from './components/PersonnelDirectoryModal';
+import { DirectoryCategoryTab } from './components/ClinicalPersonnelDirectoryPanel';
 import { AuthPortalModal } from './components/AuthPortalModal';
 import { PortalAuthGate } from './components/PortalAuthGate';
 import {
@@ -224,6 +229,10 @@ export default function App() {
 
   const [logbookModalOpen, setLogbookModalOpen] = useState(false);
   const [directoryModalOpen, setDirectoryModalOpen] = useState(false);
+  const [personnelModalOpen, setPersonnelModalOpen] = useState(false);
+  const [personnelModalCategory, setPersonnelModalCategory] =
+    useState<DirectoryCategoryTab>('intern');
+  const [personnelModalYear, setPersonnelModalYear] = useState<string>('ทั้งหมด');
   const [quickSearchOpen, setQuickSearchOpen] = useState(false);
   const [sheetsSyncModalOpen, setSheetsSyncModalOpen] = useState(false);
   const [qrGeneratorOpen, setQrGeneratorOpen] = useState(false);
@@ -232,6 +241,17 @@ export default function App() {
   const [externalScanPayload, setExternalScanPayload] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+  const [clinicalPersonnel, setClinicalPersonnel] = useState<ClinicalPersonnelRecord[]>(() => {
+    const saved = loadSavedState<ClinicalPersonnelRecord[]>(
+      'clinicalPersonnel',
+      INITIAL_CLINICAL_PERSONNEL
+    );
+    return Array.isArray(saved) && saved.length > 0 ? saved : INITIAL_CLINICAL_PERSONNEL;
+  });
+  const [cohortStudents, setCohortStudents] = useState<CohortStudentRecord[]>(() => {
+    const saved = loadSavedState<CohortStudentRecord[]>('cohortStudents', COHORT_STUDENTS);
+    return Array.isArray(saved) && saved.length > 0 ? saved : COHORT_STUDENTS;
+  });
   const [departments, setDepartments] = useState<ClinicalDepartment[]>(() => {
     const saved = loadSavedState<ClinicalDepartment[]>('departments', CLINICAL_DEPARTMENTS);
     return Array.isArray(saved) && saved.length > 0 ? saved : CLINICAL_DEPARTMENTS;
@@ -516,6 +536,8 @@ export default function App() {
           approvedPeerReviewDomains,
           peerReviewEntries,
           customQrStations,
+          clinicalPersonnel,
+          cohortStudents,
           departments,
           exams,
           courseGrades,
@@ -556,6 +578,8 @@ export default function App() {
     approvedPeerReviewDomains,
     peerReviewEntries,
     customQrStations,
+    clinicalPersonnel,
+    cohortStudents,
     departments,
     exams,
     courseGrades,
@@ -594,6 +618,8 @@ export default function App() {
         approvedPeerReviewDomains,
         peerReviewEntries,
         customQrStations,
+        clinicalPersonnel,
+        cohortStudents,
         departments,
         exams,
         courseGrades,
@@ -631,6 +657,8 @@ export default function App() {
     approvedPeerReviewDomains,
     peerReviewEntries,
     customQrStations,
+    clinicalPersonnel,
+    cohortStudents,
     departments,
     exams,
     courseGrades,
@@ -819,12 +847,23 @@ export default function App() {
       if (Array.isArray(s.preceptorFeedbacks) && s.preceptorFeedbacks.length > 0) setPreceptorFeedbacks(s.preceptorFeedbacks as PreceptorFeedback[]);
       if (Array.isArray(s.bedsideCheckIns) && s.bedsideCheckIns.length > 0) setBedsideCheckIns(s.bedsideCheckIns as BedsideCheckInRecord[]);
       if (Array.isArray(s.customQrStations) && s.customQrStations.length > 0) setCustomQrStations(s.customQrStations as FacultyGeneratedQrStation[]);
+      if (Array.isArray(s.clinicalPersonnel) && s.clinicalPersonnel.length > 0) setClinicalPersonnel(s.clinicalPersonnel as ClinicalPersonnelRecord[]);
+      if (Array.isArray(s.cohortStudents) && s.cohortStudents.length > 0) setCohortStudents(s.cohortStudents as CohortStudentRecord[]);
       if (Array.isArray(s.rotationBlocks)) setRotationBlocks(s.rotationBlocks as RotationScheduleBlock[]);
       if (Array.isArray(s.gradeSignOffs)) setGradeSignOffs(s.gradeSignOffs as CourseGradeSignOff[]);
       if (Array.isArray(syncRes.auditLogs) && syncRes.auditLogs.length > 0) {
         setAuditLogs(syncRes.auditLogs);
       }
     });
+  };
+
+  const handleOpenPersonnelDirectory = (
+    category: DirectoryCategoryTab,
+    yearFilter = 'ทั้งหมด'
+  ) => {
+    setPersonnelModalCategory(category);
+    setPersonnelModalYear(yearFilter);
+    setPersonnelModalOpen(true);
   };
 
   const handleLogout = async () => {
@@ -834,6 +873,7 @@ export default function App() {
     setServerSyncMode('local');
     setLogbookModalOpen(false);
     setDirectoryModalOpen(false);
+    setPersonnelModalOpen(false);
     setQuickSearchOpen(false);
     setSheetsSyncModalOpen(false);
     setQrGeneratorOpen(false);
@@ -2228,6 +2268,8 @@ export default function App() {
         preceptorFeedbacks,
         bedsideCheckIns,
         customQrStations,
+        clinicalPersonnel,
+        cohortStudents,
         facultySubmissions,
         approvedPeerReviewDomains,
         peerReviewEntries,
@@ -2294,6 +2336,8 @@ export default function App() {
       restoreArray('preceptorFeedbacks', setPreceptorFeedbacks);
       restoreArray('bedsideCheckIns', setBedsideCheckIns);
       restoreArray('customQrStations', setCustomQrStations);
+      restoreArray('clinicalPersonnel', setClinicalPersonnel);
+      restoreArray('cohortStudents', setCohortStudents);
       restoreArray('facultySubmissions', setFacultySubmissions);
       restoreArray('approvedPeerReviewDomains', setApprovedPeerReviewDomains);
       restoreArray('peerReviewEntries', setPeerReviewEntries);
@@ -2346,6 +2390,8 @@ export default function App() {
     setPreceptorFeedbacks(INITIAL_PRECEPTOR_FEEDBACKS);
     setBedsideCheckIns(INITIAL_BEDSIDE_CHECKINS);
     setCustomQrStations(INITIAL_FACULTY_QR_STATIONS);
+    setClinicalPersonnel(INITIAL_CLINICAL_PERSONNEL);
+    setCohortStudents(COHORT_STUDENTS);
     setFacultySubmissions(INITIAL_FACULTY_SUBMISSIONS);
     setApprovedPeerReviewDomains(INITIAL_APPROVED_PEER_REVIEW_DOMAINS);
     setPeerReviewEntries(INITIAL_PEER_REVIEW_ENTRIES);
@@ -2537,10 +2583,18 @@ export default function App() {
                 currentStudentId={activeStudentId}
                 currentStudentName={activeStudentName}
                 authenticatedDisplayName={authenticatedDisplayName}
+                cohortStudents={cohortStudents}
+                clinicalPersonnel={clinicalPersonnel}
                 studentPhotos={studentPhotos}
                 onOpenStudentDirectory={() => {
                   if (activeRole !== 'student') setDirectoryModalOpen(true);
                 }}
+                onOpenPersonnelDirectory={handleOpenPersonnelDirectory}
+                onOpenAdminBackOffice={
+                  activeRole === 'admin'
+                    ? () => setAdminBackOfficeOpen(true)
+                    : undefined
+                }
                 conferences={conferences}
                 onToggleConferenceCheckIn={handleToggleConferenceCheckIn}
                 announcements={announcements}
@@ -2604,6 +2658,13 @@ export default function App() {
                 onOpenStudentDirectory={() => {
                   if (activeRole !== 'student') setDirectoryModalOpen(true);
                 }}
+                clinicalPersonnel={clinicalPersonnel}
+                cohortStudents={cohortStudents}
+                onOpenAdminBackOffice={
+                  activeRole === 'admin'
+                    ? () => setAdminBackOfficeOpen(true)
+                    : undefined
+                }
                 rotationBlocks={rotationBlocks}
                 onSaveRotationBlocks={(blocks) => {
                   setRotationBlocks(blocks);
@@ -2728,6 +2789,29 @@ export default function App() {
         />
       )}
 
+      {isAuthenticated && (
+        <PersonnelDirectoryModal
+          isOpen={personnelModalOpen}
+          onClose={() => setPersonnelModalOpen(false)}
+          role={activeRole}
+          personnel={clinicalPersonnel}
+          cohortStudents={cohortStudents}
+          studentPhotos={studentPhotos}
+          initialCategory={personnelModalCategory}
+          initialYearFilter={personnelModalYear}
+          onOpenAdminBackOffice={
+            activeRole === 'admin'
+              ? () => setAdminBackOfficeOpen(true)
+              : undefined
+          }
+          onOpenStudentPhotoDirectory={
+            activeRole !== 'student'
+              ? () => setDirectoryModalOpen(true)
+              : undefined
+          }
+        />
+      )}
+
       <RoleAccessGuard
         role={activeRole}
         isAuthenticated={isAuthenticated}
@@ -2739,6 +2823,7 @@ export default function App() {
           role={activeRole}
           activeStudentId={activeStudentId}
           activeBadges={activeStudentBadges}
+          cohortStudents={cohortStudents}
           studentScores={scopedStudentScores}
           studentPhotos={studentPhotos}
           onUploadStudentPhoto={runWithRbac(
@@ -2889,6 +2974,10 @@ export default function App() {
           onSaveBedsideCheckIns={runAdminOnly('แก้ไขบันทึก Bedside Check-In', setBedsideCheckIns)}
           customQrStations={customQrStations}
           onSaveCustomQrStations={runAdminOnly('แก้ไขสถานี QR Code', setCustomQrStations)}
+          clinicalPersonnel={clinicalPersonnel}
+          onSaveClinicalPersonnel={runAdminOnly('แก้ไขรายชื่อแพทย์ Intern / พี่เลี้ยง / ประจำบ้าน', setClinicalPersonnel)}
+          cohortStudents={cohortStudents}
+          onSaveCohortStudents={runAdminOnly('แก้ไขรายชื่อนักศึกษาแพทย์ชั้นคลินิก', setCohortStudents)}
           onOpenAuthManage={() => {
             setAdminBackOfficeOpen(false);
             handleOpenAuthModal('manage');

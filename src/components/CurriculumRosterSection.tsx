@@ -25,7 +25,9 @@ import {
   BedsideCheckInRecord,
   ClinicalDepartment,
   ClinicalMilestoneBadge,
+  ClinicalPersonnelRecord,
   ClinicalSkillMasteryItem,
+  CohortStudentRecord,
   DutyShift,
   FacultyGeneratedQrStation,
   LeaveRequest,
@@ -36,6 +38,7 @@ import {
   UserRole,
 } from '../types/medicalSchool';
 import { formatSbarPlainText } from '../utils/sbarTemplate';
+import { ClinicalPersonnelDirectoryPanel } from './ClinicalPersonnelDirectoryPanel';
 import { DutyRosterCalendar } from './DutyRosterCalendar';
 import { DutySwapVisualizer } from './DutySwapVisualizer';
 import { ClinicalMilestoneBadgesPanel } from './ClinicalMilestoneBadgesPanel';
@@ -105,6 +108,9 @@ interface CurriculumRosterSectionProps {
   onRevokeSkillValidation: (skillId: string) => void;
   badges: ClinicalMilestoneBadge[];
   onOpenStudentDirectory?: () => void;
+  clinicalPersonnel?: ClinicalPersonnelRecord[];
+  cohortStudents?: CohortStudentRecord[];
+  onOpenAdminBackOffice?: () => void;
   rotationBlocks?: RotationScheduleBlock[];
   onSaveRotationBlocks?: (blocks: RotationScheduleBlock[]) => void;
   onPublishBlocksToShifts?: (newShifts: DutyShift[], year: AcademicYearLevel) => void;
@@ -142,12 +148,15 @@ export function CurriculumRosterSection({
   onRevokeSkillValidation,
   badges,
   onOpenStudentDirectory,
+  clinicalPersonnel = [],
+  cohortStudents = [],
+  onOpenAdminBackOffice,
   rotationBlocks = [],
   onSaveRotationBlocks,
   onPublishBlocksToShifts,
   onNotify,
 }: CurriculumRosterSectionProps) {
-  const [curriculumSubTab, setCurriculumSubTab] = useState<'overview' | 'scheduler'>('overview');
+  const [curriculumSubTab, setCurriculumSubTab] = useState<'overview' | 'scheduler' | 'directory'>('overview');
   const [selectedYear, setSelectedYear] = useState<'all' | AcademicYearLevel>('all');
   const [selectedDept, setSelectedDept] = useState<ClinicalDepartment | null>(departments[0] ?? null);
   const [rosterViewMode, setRosterViewMode] = useState<'calendar' | 'table'>('calendar');
@@ -245,6 +254,17 @@ export function CurriculumRosterSection({
             >
               จัดตารางหมุนเวียนอัตโนมัติ
             </button>
+            <button
+              type="button"
+              onClick={() => setCurriculumSubTab('directory')}
+              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                curriculumSubTab === 'directory'
+                  ? 'bg-white text-[#0F2A4A] shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              ทำเนียบ Intern · พี่เลี้ยง · ประจำบ้าน
+            </button>
           </div>
 
           {curriculumSubTab === 'overview' && (
@@ -275,7 +295,27 @@ export function CurriculumRosterSection({
         </div>
       </div>
 
-      {curriculumSubTab === 'scheduler' ? (
+      {curriculumSubTab === 'directory' ? (
+        <div className="bg-white border border-slate-200 rounded-2xl p-6 sm:p-7">
+          <div className="mb-5 pb-4 border-b border-slate-200">
+            <h2 className="text-lg font-semibold text-slate-900">
+              ทำเนียบรายชื่อและข้อมูลพื้นฐาน (แพทย์ Intern · แพทย์พี่เลี้ยง · แพทย์ประจำบ้าน · นศพ.)
+            </h2>
+            <p className="text-xs text-slate-500 mt-1">
+              ค้นหาและกรองรายชื่อแยกแต่ละชั้นปี พร้อมดูเลขที่ใบประกอบวิชาชีพ กลุ่มงาน วอร์ดปัจจุบัน และช่องทางติดต่อภายใน
+            </p>
+          </div>
+          <ClinicalPersonnelDirectoryPanel
+            role={role}
+            personnel={clinicalPersonnel}
+            cohortStudents={cohortStudents}
+            studentPhotos={studentPhotos}
+            initialCategory="intern"
+            onOpenAdminBackOffice={onOpenAdminBackOffice}
+            onOpenStudentPhotoDirectory={onOpenStudentDirectory}
+          />
+        </div>
+      ) : curriculumSubTab === 'scheduler' ? (
         <RotationAutoScheduler
           role={role}
           departments={departments}

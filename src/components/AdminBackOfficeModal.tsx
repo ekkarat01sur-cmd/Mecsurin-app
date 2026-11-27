@@ -13,6 +13,7 @@ import {
   Shield,
   Upload,
   UserCog,
+  Users,
   X,
 } from 'lucide-react';
 import {
@@ -20,9 +21,12 @@ import {
   Announcement,
   BedsideCheckInRecord,
   ClinicalDepartment,
+  ClinicalPersonnelCategory,
+  ClinicalPersonnelRecord,
   ClinicalReferenceMaterial,
   ClinicalSetting,
   ClinicalSkillMasteryItem,
+  CohortStudentRecord,
   ConferenceEvent,
   CourseGrade,
   CourseGradingConfig,
@@ -35,6 +39,7 @@ import {
   LogbookStatus,
   OsceEvaluationRecord,
   OsceExam,
+  PersonnelYearTag,
   PreceptorFeedback,
   ProcedureQuota,
   ProcedureRole,
@@ -54,6 +59,7 @@ type BackOfficeDomain =
   | 'shifts'
   | 'courses'
   | 'resources'
+  | 'personnel'
   | 'system';
 
 interface AdminBackOfficeModalProps {
@@ -107,6 +113,10 @@ interface AdminBackOfficeModalProps {
   onSaveBedsideCheckIns: (next: BedsideCheckInRecord[]) => void;
   customQrStations: FacultyGeneratedQrStation[];
   onSaveCustomQrStations: (next: FacultyGeneratedQrStation[]) => void;
+  clinicalPersonnel: ClinicalPersonnelRecord[];
+  onSaveClinicalPersonnel: (next: ClinicalPersonnelRecord[]) => void;
+  cohortStudents: CohortStudentRecord[];
+  onSaveCohortStudents: (next: CohortStudentRecord[]) => void;
   onOpenAuthManage: () => void;
   onOpenQrGenerator: () => void;
   onOpenSheetsSync: () => void;
@@ -126,6 +136,7 @@ const DOMAIN_TABS: Array<{
   { id: 'shifts', label: 'ตารางเวร ลา & ห้อง', icon: Clock },
   { id: 'courses', label: 'รายวิชา & ทักษะ', icon: GraduationCap },
   { id: 'resources', label: 'Logbook CPG วิจัย', icon: BookOpen },
+  { id: 'personnel', label: 'บุคลากร & นศพ.', icon: Users },
   { id: 'system', label: 'สมาชิก QR & สำรองข้อมูล', icon: Database },
 ];
 
@@ -194,6 +205,10 @@ export function AdminBackOfficeModal({
   onSaveBedsideCheckIns,
   customQrStations,
   onSaveCustomQrStations,
+  clinicalPersonnel,
+  onSaveClinicalPersonnel,
+  cohortStudents,
+  onSaveCohortStudents,
   onOpenAuthManage,
   onOpenQrGenerator,
   onOpenSheetsSync,
@@ -245,6 +260,7 @@ export function AdminBackOfficeModal({
     else if (nextDomain === 'shifts') setSubEntity('shifts');
     else if (nextDomain === 'courses') setSubEntity('departments');
     else if (nextDomain === 'resources') setSubEntity('logbookEntries');
+    else if (nextDomain === 'personnel') setSubEntity('clinicalPersonnel');
     else setSubEntity('system');
   };
 
@@ -420,6 +436,34 @@ export function AdminBackOfficeModal({
                   { id: 'researchProjects', label: `โครงการวิจัย IRB (${researchProjects.length})` },
                   { id: 'welfareRequests', label: `สวัสดิการ/นัดที่ปรึกษา (${welfareRequests.length})` },
                   { id: 'bedsideCheckIns', label: `บันทึกสแกนข้างเตียง (${bedsideCheckIns.length})` },
+                ].map((sub) => (
+                  <button
+                    key={sub.id}
+                    type="button"
+                    onClick={() => setSubEntity(sub.id)}
+                    className={`px-3 py-1.5 text-xs font-medium rounded-md cursor-pointer ${
+                      subEntity === sub.id
+                        ? 'bg-[#0F766E] text-white'
+                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                    }`}
+                  >
+                    <span>{sub.label}</span>
+                  </button>
+                ))}
+              </>
+            )}
+
+            {domain === 'personnel' && (
+              <>
+                {[
+                  {
+                    id: 'clinicalPersonnel',
+                    label: `แพทย์ Intern · พี่เลี้ยง · ประจำบ้าน (${clinicalPersonnel.length})`,
+                  },
+                  {
+                    id: 'cohortStudents',
+                    label: `นักศึกษาแพทย์ชั้นคลินิก ปี 4–6 (${cohortStudents.length})`,
+                  },
                 ].map((sub) => (
                   <button
                     key={sub.id}
@@ -2162,6 +2206,229 @@ export function AdminBackOfficeModal({
               onDelete={(id) => {
                 onSaveBedsideCheckIns(bedsideCheckIns.filter((x) => x.id !== id));
                 onNotify('ลบบันทึกเคสข้างเตียงแล้ว');
+              }}
+            />
+          )}
+
+          {/* 5B. CLINICAL PERSONNEL & COHORT STUDENTS */}
+          {domain === 'personnel' && subEntity === 'clinicalPersonnel' && (
+            <AdminEntityCrudList<ClinicalPersonnelRecord>
+              title="ทำเนียบแพทย์ Intern · แพทย์พี่เลี้ยง · แพทย์ประจำบ้าน"
+              subtitle="เพิ่ม แก้ไข หรือลบข้อมูลแพทย์แต่ละชั้นปี วอร์ดปัจจุบัน เลขที่ใบประกอบวิชาชีพ และข้อมูลพื้นฐาน"
+              items={clinicalPersonnel}
+              getId={(p) => p.id}
+              getBadge={(p) =>
+                `${
+                  p.category === 'intern'
+                    ? 'แพทย์ Intern'
+                    : p.category === 'preceptor'
+                      ? 'แพทย์พี่เลี้ยง'
+                      : 'แพทย์ประจำบ้าน'
+                } · ${p.yearLevel} · ${p.medicalLicenseNo}`
+              }
+              getTitle={(p) => p.fullName}
+              getMeta={(p) =>
+                `${p.department} · ${p.currentWard} · ${p.phoneOrPager} · ${p.status}`
+              }
+              fields={[
+                { key: 'personnelCode', label: 'รหัสประจำตัว (เช่น INT-6906)', type: 'text', required: true },
+                { key: 'fullName', label: 'ชื่อ-สกุล', type: 'text', required: true },
+                {
+                  key: 'category',
+                  label: 'ประเภทบุคลากร',
+                  type: 'select',
+                  options: [
+                    { value: 'intern', label: 'แพทย์ Intern' },
+                    { value: 'preceptor', label: 'แพทย์พี่เลี้ยง (Preceptor)' },
+                    { value: 'resident', label: 'แพทย์ประจำบ้าน (Resident)' },
+                  ],
+                },
+                {
+                  key: 'yearLevel',
+                  label: 'ชั้นปี / ระดับที่รับผิดชอบ',
+                  type: 'select',
+                  options: [
+                    { value: 'ปี 1', label: 'ปี 1 (Intern 1 / R1)' },
+                    { value: 'ปี 2', label: 'ปี 2 (Intern 2 / R2)' },
+                    { value: 'ปี 3', label: 'ปี 3 (R3 Chief/Senior)' },
+                    { value: 'ดูแลปี 4', label: 'แพทย์พี่เลี้ยงดูแลปี 4' },
+                    { value: 'ดูแลปี 5', label: 'แพทย์พี่เลี้ยงดูแลปี 5' },
+                    { value: 'ดูแลปี 6 (Extern)', label: 'แพทย์พี่เลี้ยงดูแลปี 6 (Extern)' },
+                    { value: 'ประจำกลุ่มงาน', label: 'แพทย์พี่เลี้ยงประจำกลุ่มงาน' },
+                  ],
+                },
+                { key: 'department', label: 'กลุ่มงานคลินิก', type: 'select', options: deptOptions },
+                { key: 'currentWard', label: 'หอผู้ป่วย / จุดปฏิบัติงานปัจจุบัน', type: 'text', required: true },
+                { key: 'medicalLicenseNo', label: 'เลขที่ใบประกอบวิชาชีพ (ว.)', type: 'text', required: true },
+                { key: 'institutionOrBoard', label: 'สถาบันที่จบ / วุฒิบัตรเฉพาะทาง', type: 'text', required: true },
+                { key: 'phoneOrPager', label: 'เบอร์ภายใน / วิทยุสื่อสาร', type: 'text', required: true },
+                { key: 'email', label: 'อีเมล (ถ้ามี)', type: 'text' },
+                {
+                  key: 'status',
+                  label: 'สถานะปฏิบัติงาน',
+                  type: 'select',
+                  options: [
+                    { value: 'ปฏิบัติงานปกติ', label: 'ปฏิบัติงานปกติ' },
+                    { value: 'หมุนเวียน รพ.ชุมชน', label: 'หมุนเวียน รพ.ชุมชน' },
+                    { value: 'ออกตรวจ OPD / OR', label: 'ออกตรวจ OPD / OR' },
+                    { value: 'ลาศึกษาต่อ/ประชุม', label: 'ลาศึกษาต่อ/ประชุม' },
+                  ],
+                },
+                { key: 'supervisingNote', label: 'บทบาทหน้าที่ / ข้อมูลเพิ่มเติม', type: 'textarea' },
+              ]}
+              createDefaults={() => ({
+                personnelCode: `DOC-${Date.now().toString().slice(-4)}`,
+                fullName: '',
+                category: 'intern',
+                yearLevel: 'ปี 1',
+                department: departments[0]?.nameTh ?? 'กลุ่มงานอายุรศาสตร์',
+                currentWard: 'อายุรกรรมชาย 1',
+                medicalLicenseNo: 'ว.',
+                institutionOrBoard: 'แพทยศาสตรบัณฑิต',
+                phoneOrPager: 'ภายใน ',
+                email: '',
+                status: 'ปฏิบัติงานปกติ',
+                supervisingNote: '',
+              })}
+              toFormValues={(p) => ({
+                personnelCode: p.personnelCode,
+                fullName: p.fullName,
+                category: p.category,
+                yearLevel: p.yearLevel,
+                department: p.department,
+                currentWard: p.currentWard,
+                medicalLicenseNo: p.medicalLicenseNo,
+                institutionOrBoard: p.institutionOrBoard,
+                phoneOrPager: p.phoneOrPager,
+                email: p.email ?? '',
+                status: p.status,
+                supervisingNote: p.supervisingNote,
+              })}
+              fromFormValues={(v, existing) => ({
+                id: existing?.id ?? `pers-${Date.now()}`,
+                personnelCode: String(v.personnelCode).trim(),
+                fullName: String(v.fullName).trim(),
+                category: v.category as ClinicalPersonnelCategory,
+                yearLevel: v.yearLevel as PersonnelYearTag,
+                department: String(v.department).trim(),
+                currentWard: String(v.currentWard).trim(),
+                medicalLicenseNo: String(v.medicalLicenseNo).trim(),
+                institutionOrBoard: String(v.institutionOrBoard).trim(),
+                phoneOrPager: String(v.phoneOrPager).trim(),
+                email: String(v.email ?? '').trim() || undefined,
+                status: v.status as ClinicalPersonnelRecord['status'],
+                supervisingNote: String(v.supervisingNote ?? '').trim(),
+              })}
+              onCreate={(item) => {
+                onSaveClinicalPersonnel([item, ...clinicalPersonnel]);
+                onNotify(`เพิ่มข้อมูล ${item.fullName} เรียบร้อยแล้ว`);
+              }}
+              onUpdate={(item) => {
+                onSaveClinicalPersonnel(
+                  clinicalPersonnel.map((x) => (x.id === item.id ? item : x))
+                );
+                onNotify(`อัปเดตข้อมูล ${item.fullName} เรียบร้อยแล้ว`);
+              }}
+              onDelete={(id) => {
+                onSaveClinicalPersonnel(clinicalPersonnel.filter((x) => x.id !== id));
+                onNotify('ลบรายชื่อบุคลากรแล้ว');
+              }}
+            />
+          )}
+
+          {domain === 'personnel' && subEntity === 'cohortStudents' && (
+            <AdminEntityCrudList<CohortStudentRecord>
+              title="ทำเนียบรายชื่อนักศึกษาแพทย์ชั้นคลินิก (ชั้นปีที่ 4–6)"
+              subtitle="เพิ่ม แก้ไข หรือลบรายชื่อนักศึกษาแพทย์แต่ละชั้นปี ยอดรวมบนแดชบอร์ดหน้าหลักจะอัปเดตอัตโนมัติ"
+              items={cohortStudents}
+              getId={(s) => s.studentId}
+              getBadge={(s) =>
+                `ชั้นปีที่ ${s.yearLevel}${s.yearLevel === '6' ? ' (Extern)' : ''} · ${s.group}`
+              }
+              getTitle={(s) => `${s.studentId} · ${s.studentName}`}
+              getMeta={(s) =>
+                `ที่ปรึกษา: ${s.advisorName ?? '-'} · ติดต่อ: ${s.contactInfo ?? '-'} · ${s.status ?? 'ฝึกปฏิบัติคลินิก'}`
+              }
+              fields={[
+                { key: 'studentId', label: 'รหัสนักศึกษา (เช่น 66104040)', type: 'text', required: true, readOnlyOnEdit: true },
+                { key: 'studentName', label: 'ชื่อ-สกุลนักศึกษาแพทย์', type: 'text', required: true },
+                {
+                  key: 'yearLevel',
+                  label: 'ชั้นปี',
+                  type: 'select',
+                  options: [
+                    { value: '4', label: 'ชั้นปีที่ 4' },
+                    { value: '5', label: 'ชั้นปีที่ 5' },
+                    { value: '6', label: 'ชั้นปีที่ 6 (Extern)' },
+                  ],
+                },
+                {
+                  key: 'group',
+                  label: 'กลุ่มปฏิบัติงาน',
+                  type: 'select',
+                  options: [
+                    { value: 'กลุ่ม A', label: 'กลุ่ม A' },
+                    { value: 'กลุ่ม B', label: 'กลุ่ม B' },
+                    { value: 'กลุ่ม C', label: 'กลุ่ม C' },
+                  ],
+                },
+                { key: 'advisorName', label: 'อาจารย์ที่ปรึกษา', type: 'text' },
+                { key: 'contactInfo', label: 'ข้อมูลติดต่อ / หอพัก', type: 'text' },
+                {
+                  key: 'status',
+                  label: 'สถานะการศึกษา',
+                  type: 'select',
+                  options: [
+                    { value: 'ฝึกปฏิบัติคลินิก', label: 'ฝึกปฏิบัติคลินิก' },
+                    { value: 'กำลังศึกษา', label: 'กำลังศึกษา' },
+                    { value: 'พักการศึกษา', label: 'พักการศึกษา' },
+                  ],
+                },
+              ]}
+              createDefaults={() => ({
+                studentId: `66104${Date.now().toString().slice(-3)}`,
+                studentName: 'นศพ. ',
+                yearLevel: '4',
+                group: 'กลุ่ม A',
+                advisorName: 'นพ.เอกรัตน์ วัฒนสุรินทร์',
+                contactInfo: 'หอพักนักศึกษาแพทย์ ศพค.',
+                status: 'ฝึกปฏิบัติคลินิก',
+              })}
+              toFormValues={(s) => ({
+                studentId: s.studentId,
+                studentName: s.studentName,
+                yearLevel: s.yearLevel,
+                group: s.group,
+                advisorName: s.advisorName ?? '',
+                contactInfo: s.contactInfo ?? '',
+                status: s.status ?? 'ฝึกปฏิบัติคลินิก',
+              })}
+              fromFormValues={(v, existing) => ({
+                studentId: existing?.studentId ?? String(v.studentId).trim(),
+                studentName: String(v.studentName).trim(),
+                yearLevel: v.yearLevel as AcademicYearLevel,
+                group: String(v.group).trim(),
+                advisorName: String(v.advisorName ?? '').trim() || undefined,
+                contactInfo: String(v.contactInfo ?? '').trim() || undefined,
+                status: v.status as CohortStudentRecord['status'],
+              })}
+              onCreate={(item) => {
+                if (cohortStudents.some((s) => s.studentId === item.studentId)) {
+                  onNotify(`รหัสนักศึกษา ${item.studentId} มีอยู่ในระบบแล้ว`);
+                  return;
+                }
+                onSaveCohortStudents([item, ...cohortStudents]);
+                onNotify(`เพิ่มนักศึกษา ${item.studentName} เรียบร้อยแล้ว`);
+              }}
+              onUpdate={(item) => {
+                onSaveCohortStudents(
+                  cohortStudents.map((x) => (x.studentId === item.studentId ? item : x))
+                );
+                onNotify(`อัปเดตข้อมูล ${item.studentName} เรียบร้อยแล้ว`);
+              }}
+              onDelete={(id) => {
+                onSaveCohortStudents(cohortStudents.filter((x) => x.studentId !== id));
+                onNotify('ลบรายชื่อนักศึกษาแพทย์แล้ว');
               }}
             />
           )}
