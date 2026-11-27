@@ -11,12 +11,22 @@ import { GoogleGenAI } from '@google/genai';
 type UserRole = 'student' | 'faculty' | 'course_officer' | 'admin';
 type RoleAccessLevel = 1 | 2 | 3;
 
+type MemberAccountStatus = 'ใช้งานปกติ' | 'ลาศึกษาต่อ/ประชุม' | 'ระงับชั่วคราว';
+
 interface AccountRecord {
   username: string;
   role: UserRole;
   level: RoleAccessLevel;
   displayName: string;
   affiliation: string;
+  photoUrl?: string;
+  positionTitle?: string;
+  department?: string;
+  phone?: string;
+  email?: string;
+  licenseOrCode?: string;
+  status?: MemberAccountStatus;
+  notes?: string;
   studentId?: string;
   assignedCourseCodes?: string[];
   salt?: string;
@@ -30,6 +40,14 @@ interface PublicAccountSummary {
   level: RoleAccessLevel;
   displayName: string;
   affiliation: string;
+  photoUrl?: string;
+  positionTitle?: string;
+  department?: string;
+  phone?: string;
+  email?: string;
+  licenseOrCode?: string;
+  status?: MemberAccountStatus;
+  notes?: string;
   studentId?: string;
   assignedCourseCodes?: string[];
   hasPasswordSet: boolean;
@@ -143,6 +161,37 @@ function verifyToken(token: string): TokenPayload | null {
   }
 }
 
+const SERVER_PORTRAIT_ASSETS = {
+  male1: './src/assets/images/student_male_extern_1795505450579.jpg',
+  male2: './src/assets/images/student_male_med2_1795505450611.jpg',
+  female1: './src/assets/images/student_female_med1_1795505449339.jpg',
+  female2: './src/assets/images/student_female_med2_1795505450327.jpg',
+} as const;
+
+function sanitizeServerAvatarUrl(raw: unknown): string | undefined {
+  if (typeof raw !== 'string') return undefined;
+  const trimmed = raw.trim();
+  if (!trimmed) return '';
+  if (trimmed.length > 500_000) return undefined;
+  if (
+    trimmed.startsWith('https://') ||
+    trimmed.startsWith('http://') ||
+    trimmed.startsWith('./') ||
+    trimmed.startsWith('/') ||
+    /^data:image\/(png|jpeg|jpg|webp|gif);base64,/i.test(trimmed)
+  ) {
+    return trimmed;
+  }
+  return undefined;
+}
+
+function normalizeMemberStatus(raw: unknown): MemberAccountStatus | undefined {
+  if (raw === 'ใช้งานปกติ' || raw === 'ลาศึกษาต่อ/ประชุม' || raw === 'ระงับชั่วคราว') {
+    return raw;
+  }
+  return undefined;
+}
+
 function toPublicSummary(acc: AccountRecord): PublicAccountSummary {
   return {
     username: acc.username,
@@ -150,6 +199,14 @@ function toPublicSummary(acc: AccountRecord): PublicAccountSummary {
     level: acc.level,
     displayName: acc.displayName,
     affiliation: acc.affiliation,
+    photoUrl: acc.photoUrl || undefined,
+    positionTitle: acc.positionTitle,
+    department: acc.department,
+    phone: acc.phone,
+    email: acc.email,
+    licenseOrCode: acc.licenseOrCode,
+    status: acc.status ?? 'ใช้งานปกติ',
+    notes: acc.notes,
     studentId: acc.studentId,
     assignedCourseCodes: acc.assignedCourseCodes,
     hasPasswordSet: Boolean(acc.passwordHash && acc.salt),
@@ -167,6 +224,13 @@ function buildInitialAccounts(): Map<string, AccountRecord> {
       level: 3,
       displayName: 'ประธานคณะกรรมการบริหารหลักสูตรและฝ่ายวิชาการ',
       affiliation: 'สำนักงานศูนย์แพทยศาสตรศึกษาชั้นคลินิก รพ.สุรินทร์',
+      photoUrl: SERVER_PORTRAIT_ASSETS.male1,
+      positionTitle: 'ผู้อำนวยการ / ประธานหลักสูตร ศพค.',
+      department: 'สำนักงานศูนย์แพทยศาสตรศึกษาชั้นคลินิก',
+      phone: 'ภายใน 2001 · 044-511-006',
+      email: 'mec-admin@surinhospital.go.th',
+      licenseOrCode: 'MEC-ADMIN-01',
+      status: 'ใช้งานปกติ',
     },
     // Per-Course Academic Officers (นักวิชาการประจำรายวิชา)
     {
@@ -175,6 +239,13 @@ function buildInitialAccounts(): Map<string, AccountRecord> {
       level: 3,
       displayName: 'นางสาวณัฐริกา ใจซื่อ (นักวิชาการรายวิชา กุมารฯ)',
       affiliation: 'กลุ่มงานกุมารเวชศาสตร์ (SUR-PED-502)',
+      photoUrl: SERVER_PORTRAIT_ASSETS.female1,
+      positionTitle: 'นักวิชาการศึกษาประจำรายวิชา',
+      department: 'กลุ่มงานกุมารเวชศาสตร์',
+      phone: 'ภายใน 2209',
+      email: 'natrika.j@surinhospital.go.th',
+      licenseOrCode: 'OFF-PED-01',
+      status: 'ใช้งานปกติ',
       assignedCourseCodes: ['SUR-PED-502'],
     },
     {
@@ -183,6 +254,13 @@ function buildInitialAccounts(): Map<string, AccountRecord> {
       level: 3,
       displayName: 'นายธีระวัฒน์ สุริยา (นักวิชาการรายวิชา อายุรฯ)',
       affiliation: 'กลุ่มงานอายุรศาสตร์ (SUR-MED-401)',
+      photoUrl: SERVER_PORTRAIT_ASSETS.male2,
+      positionTitle: 'นักวิชาการศึกษาประจำรายวิชา',
+      department: 'กลุ่มงานอายุรศาสตร์',
+      phone: 'ภายใน 2109',
+      email: 'teerawat.s@surinhospital.go.th',
+      licenseOrCode: 'OFF-MED-01',
+      status: 'ใช้งานปกติ',
       assignedCourseCodes: ['SUR-MED-401'],
     },
     {
@@ -191,6 +269,13 @@ function buildInitialAccounts(): Map<string, AccountRecord> {
       level: 3,
       displayName: 'นางสาวศศิวิมล พูลสุข (นักวิชาการรายวิชา ศัลยฯ)',
       affiliation: 'กลุ่มงานศัลยศาสตร์ (SUR-SURG-402)',
+      photoUrl: SERVER_PORTRAIT_ASSETS.female2,
+      positionTitle: 'นักวิชาการศึกษาประจำรายวิชา',
+      department: 'กลุ่มงานศัลยศาสตร์',
+      phone: 'ภายใน 2309',
+      email: 'sasiwimon.p@surinhospital.go.th',
+      licenseOrCode: 'OFF-SURG-01',
+      status: 'ใช้งานปกติ',
       assignedCourseCodes: ['SUR-SURG-402'],
     },
     {
@@ -199,6 +284,13 @@ function buildInitialAccounts(): Map<string, AccountRecord> {
       level: 3,
       displayName: 'นางสาวปิยะพร จันทร์งาม (นักวิชาการรายวิชา สูติฯ)',
       affiliation: 'กลุ่มงานสูติศาสตร์-นรีเวชวิทยา (SUR-OBG-501)',
+      photoUrl: SERVER_PORTRAIT_ASSETS.female1,
+      positionTitle: 'นักวิชาการศึกษาประจำรายวิชา',
+      department: 'กลุ่มงานสูติศาสตร์-นรีเวชวิทยา',
+      phone: 'ภายใน 2409',
+      email: 'piyaporn.c@surinhospital.go.th',
+      licenseOrCode: 'OFF-OBG-01',
+      status: 'ใช้งานปกติ',
       assignedCourseCodes: ['SUR-OBG-501'],
     },
     // Faculty Physicians
@@ -208,6 +300,13 @@ function buildInitialAccounts(): Map<string, AccountRecord> {
       level: 2,
       displayName: 'อ.ภิญญดา แก้วปลั่ง',
       affiliation: 'อาจารย์แพทย์ กลุ่มงานกุมารเวชศาสตร์',
+      photoUrl: SERVER_PORTRAIT_ASSETS.female2,
+      positionTitle: 'อาจารย์แพทย์พี่เลี้ยง / ประเมิน OSCE',
+      department: 'กลุ่มงานกุมารเวชศาสตร์',
+      phone: 'ภายใน 2204',
+      email: 'pinyada.k@surinhospital.go.th',
+      licenseOrCode: 'ว.49812',
+      status: 'ใช้งานปกติ',
       assignedCourseCodes: ['SUR-PED-502'],
     },
     {
@@ -216,6 +315,13 @@ function buildInitialAccounts(): Map<string, AccountRecord> {
       level: 2,
       displayName: 'พญ. นภัสสร สุขเจริญ',
       affiliation: 'หัวหน้ากลุ่มงานกุมารเวชศาสตร์',
+      photoUrl: SERVER_PORTRAIT_ASSETS.female1,
+      positionTitle: 'หัวหน้ากลุ่มงานกุมารเวชศาสตร์',
+      department: 'กลุ่มงานกุมารเวชศาสตร์',
+      phone: 'ภายใน 2201',
+      email: 'napassorn.s@surinhospital.go.th',
+      licenseOrCode: 'ว.45630',
+      status: 'ใช้งานปกติ',
       assignedCourseCodes: ['SUR-PED-502'],
     },
     {
@@ -224,6 +330,13 @@ function buildInitialAccounts(): Map<string, AccountRecord> {
       level: 2,
       displayName: 'นพ. เอกรัตน์ วัฒนสุรินทร์',
       affiliation: 'หัวหน้ากลุ่มงานอายุรศาสตร์',
+      photoUrl: SERVER_PORTRAIT_ASSETS.male1,
+      positionTitle: 'หัวหน้ากลุ่มงานอายุรศาสตร์',
+      department: 'กลุ่มงานอายุรศาสตร์',
+      phone: 'ภายใน 2101',
+      email: 'ekkarat.w@surinhospital.go.th',
+      licenseOrCode: 'ว.41208',
+      status: 'ใช้งานปกติ',
       assignedCourseCodes: ['SUR-MED-401'],
     },
     {
@@ -232,6 +345,13 @@ function buildInitialAccounts(): Map<string, AccountRecord> {
       level: 2,
       displayName: 'นพ. กิตติพงษ์ จันทรา',
       affiliation: 'หัวหน้ากลุ่มงานศัลยศาสตร์',
+      photoUrl: SERVER_PORTRAIT_ASSETS.male2,
+      positionTitle: 'หัวหน้ากลุ่มงานศัลยศาสตร์',
+      department: 'กลุ่มงานศัลยศาสตร์',
+      phone: 'ภายใน 2301',
+      email: 'kittipong.c@surinhospital.go.th',
+      licenseOrCode: 'ว.42815',
+      status: 'ใช้งานปกติ',
       assignedCourseCodes: ['SUR-SURG-402'],
     },
     {
@@ -240,6 +360,13 @@ function buildInitialAccounts(): Map<string, AccountRecord> {
       level: 2,
       displayName: 'พญ. ศิริพร วงศ์สุวรรณ',
       affiliation: 'หัวหน้ากลุ่มงานสูติศาสตร์-นรีเวชวิทยา',
+      photoUrl: SERVER_PORTRAIT_ASSETS.female1,
+      positionTitle: 'หัวหน้ากลุ่มงานสูติศาสตร์-นรีเวชวิทยา',
+      department: 'กลุ่มงานสูติศาสตร์-นรีเวชวิทยา',
+      phone: 'ภายใน 2401',
+      email: 'siriporn.w@surinhospital.go.th',
+      licenseOrCode: 'ว.44109',
+      status: 'ใช้งานปกติ',
       assignedCourseCodes: ['SUR-OBG-501'],
     },
     {
@@ -248,41 +375,48 @@ function buildInitialAccounts(): Map<string, AccountRecord> {
       level: 2,
       displayName: 'นพ. ภูริทัต ศรีสวัสดิ์',
       affiliation: 'หัวหน้ากลุ่มงานเวชศาสตร์ฉุกเฉิน',
+      photoUrl: SERVER_PORTRAIT_ASSETS.male1,
+      positionTitle: 'หัวหน้ากลุ่มงานเวชศาสตร์ฉุกเฉิน',
+      department: 'กลุ่มงานเวชศาสตร์ฉุกเฉิน',
+      phone: 'ภายใน 1660',
+      email: 'phuritat.s@surinhospital.go.th',
+      licenseOrCode: 'ว.47922',
+      status: 'ใช้งานปกติ',
       assignedCourseCodes: ['SUR-MED-401', 'SUR-SURG-402'],
     },
   ];
 
-  const students: [string, string, string, string][] = [
-    ['66104011', 'นศพ. กิตติคุณ แสงสุริยา', '4', 'กลุ่ม A'],
-    ['66104015', 'นศพ. ชนิกานต์ วงศ์ทอง', '4', 'กลุ่ม A'],
-    ['66104019', 'นศพ. พงศกร ศรีชัย', '4', 'กลุ่ม A'],
-    ['66104024', 'นศพ. วริศรา รัตนกุล', '4', 'กลุ่ม B'],
-    ['66104028', 'นศพ. อภิสิทธิ์ บุญทวี', '4', 'กลุ่ม B'],
-    ['66104032', 'นศพ. ณัฐพล แก้วมณี', '4', 'กลุ่ม C'],
-    ['66104036', 'นศพ. ภัทรวดี สุวรรณชัย', '4', 'กลุ่ม C'],
-    ['65104102', 'นศพ. กวินทัต สุขสมบูรณ์', '5', 'กลุ่ม A'],
-    ['65104105', 'นศพ. ณิชาภัทร เจริญศรี', '5', 'กลุ่ม A'],
-    ['65104127', 'นศพ. ธีรภัทร บุญเรือง', '5', 'กลุ่ม A'],
-    ['65104131', 'นศพ. ปวริศร์ ทองดี', '5', 'กลุ่ม A'],
-    ['65104109', 'นศพ. กชพร สุขสม', '5', 'กลุ่ม B'],
-    ['65104114', 'นศพ. พิชญา วงศ์สุรินทร์', '5', 'กลุ่ม B'],
-    ['65104118', 'นศพ. ศุภกร มั่นคง', '5', 'กลุ่ม B'],
-    ['65104122', 'นศพ. อรปรียา แก้วใส', '5', 'กลุ่ม B'],
-    ['65104135', 'นศพ. จิรวัฒน์ พรมมา', '5', 'กลุ่ม C'],
-    ['65104139', 'นศพ. ชุติมณฑน์ ใจตรง', '5', 'กลุ่ม C'],
-    ['64104218', 'นศพ. ธนภัทร ศรีสุรินทร์', '6', 'กลุ่ม A'],
-    ['64104221', 'นศพ. พิมพ์ชนก รักชาติ', '6', 'กลุ่ม A'],
-    ['64104225', 'นศพ. ภานุพงศ์ ชาญชัย', '6', 'กลุ่ม A'],
-    ['64104230', 'นศพ. รัชชานนท์ ทองคำ', '6', 'กลุ่ม B'],
-    ['64104234', 'นศพ. สิริยากร แสงแก้ว', '6', 'กลุ่ม B'],
-    ['64104241', 'นศพ. เอกชัย ชื่นชม', '6', 'กลุ่ม C'],
+  const students: [string, string, string, string, string, string][] = [
+    ['66104011', 'นศพ. กิตติคุณ แสงสุริยา', '4', 'กลุ่ม A', SERVER_PORTRAIT_ASSETS.male1, '089-411-4011'],
+    ['66104015', 'นศพ. ชนิกานต์ วงศ์ทอง', '4', 'กลุ่ม A', SERVER_PORTRAIT_ASSETS.female1, '089-411-4015'],
+    ['66104019', 'นศพ. พงศกร ศรีชัย', '4', 'กลุ่ม A', SERVER_PORTRAIT_ASSETS.male2, '089-411-4019'],
+    ['66104024', 'นศพ. วริศรา รัตนกุล', '4', 'กลุ่ม B', SERVER_PORTRAIT_ASSETS.female2, '089-411-4024'],
+    ['66104028', 'นศพ. อภิสิทธิ์ บุญทวี', '4', 'กลุ่ม B', SERVER_PORTRAIT_ASSETS.male1, '089-411-4028'],
+    ['66104032', 'นศพ. ณัฐพล แก้วมณี', '4', 'กลุ่ม C', SERVER_PORTRAIT_ASSETS.male2, '089-411-4032'],
+    ['66104036', 'นศพ. ภัทรวดี สุวรรณชัย', '4', 'กลุ่ม C', SERVER_PORTRAIT_ASSETS.female1, '089-411-4036'],
+    ['65104102', 'นศพ. กวินทัต สุขสมบูรณ์', '5', 'กลุ่ม A', SERVER_PORTRAIT_ASSETS.male1, '086-512-4102'],
+    ['65104105', 'นศพ. ณิชาภัทร เจริญศรี', '5', 'กลุ่ม A', SERVER_PORTRAIT_ASSETS.female2, '086-512-4105'],
+    ['65104127', 'นศพ. ธีรภัทร บุญเรือง', '5', 'กลุ่ม A', SERVER_PORTRAIT_ASSETS.male2, '086-512-4127'],
+    ['65104131', 'นศพ. ปวริศร์ ทองดี', '5', 'กลุ่ม A', SERVER_PORTRAIT_ASSETS.male1, '086-512-4131'],
+    ['65104109', 'นศพ. กชพร สุขสม', '5', 'กลุ่ม B', SERVER_PORTRAIT_ASSETS.female1, '086-512-4109'],
+    ['65104114', 'นศพ. พิชญา วงศ์สุรินทร์', '5', 'กลุ่ม B', SERVER_PORTRAIT_ASSETS.female2, '086-512-4114'],
+    ['65104118', 'นศพ. ศุภกร มั่นคง', '5', 'กลุ่ม B', SERVER_PORTRAIT_ASSETS.male2, '086-512-4118'],
+    ['65104122', 'นศพ. อรปรียา แก้วใส', '5', 'กลุ่ม B', SERVER_PORTRAIT_ASSETS.female1, '086-512-4122'],
+    ['65104135', 'นศพ. จิรวัฒน์ พรมมา', '5', 'กลุ่ม C', SERVER_PORTRAIT_ASSETS.male1, '086-512-4135'],
+    ['65104139', 'นศพ. ชุติมณฑน์ ใจตรง', '5', 'กลุ่ม C', SERVER_PORTRAIT_ASSETS.female2, '086-512-4139'],
+    ['64104218', 'นศพ. ธนภัทร ศรีสุรินทร์', '6', 'กลุ่ม A', SERVER_PORTRAIT_ASSETS.male1, '081-641-0421'],
+    ['64104221', 'นศพ. พิมพ์ชนก รักชาติ', '6', 'กลุ่ม A', SERVER_PORTRAIT_ASSETS.female1, '081-641-0422'],
+    ['64104225', 'นศพ. ภานุพงศ์ ชาญชัย', '6', 'กลุ่ม A', SERVER_PORTRAIT_ASSETS.male2, '081-641-0425'],
+    ['64104230', 'นศพ. รัชชานนท์ ทองคำ', '6', 'กลุ่ม B', SERVER_PORTRAIT_ASSETS.male1, '081-641-0430'],
+    ['64104234', 'นศพ. สิริยากร แสงแก้ว', '6', 'กลุ่ม B', SERVER_PORTRAIT_ASSETS.female2, '081-641-0434'],
+    ['64104241', 'นศพ. เอกชัย ชื่นชม', '6', 'กลุ่ม C', SERVER_PORTRAIT_ASSETS.male2, '081-641-0441'],
   ];
 
   for (const item of seedList) {
     accounts.set(item.username, { ...item, mustChangePassword: false });
   }
 
-  for (const [studentId, studentName, yearLevel, group] of students) {
+  for (const [studentId, studentName, yearLevel, group, photoUrl, phone] of students) {
     const username = `std_${studentId}`;
     accounts.set(username, {
       username,
@@ -290,6 +424,13 @@ function buildInitialAccounts(): Map<string, AccountRecord> {
       level: 1,
       displayName: studentName,
       affiliation: `ชั้นปีที่ ${yearLevel} (${group}) · รหัส ${studentId}`,
+      photoUrl,
+      positionTitle: `นักศึกษาแพทย์ชั้นปีที่ ${yearLevel}${yearLevel === '6' ? ' (Extern)' : ''}`,
+      department: 'ศูนย์แพทยศาสตรศึกษาชั้นคลินิก รพ.สุรินทร์',
+      phone,
+      email: `${studentId}@student.surinmec.ac.th`,
+      licenseOrCode: studentId,
+      status: 'ใช้งานปกติ',
       studentId,
       mustChangePassword: true,
     });
@@ -344,7 +485,18 @@ function loadPersistedDb(): {
     if (Array.isArray(parsed.accounts) && parsed.accounts.length > 0) {
       for (const acc of parsed.accounts) {
         if (acc && typeof acc.username === 'string') {
-          accounts.set(acc.username, acc);
+          const seed = defaultAccounts.get(acc.username);
+          accounts.set(acc.username, {
+            ...seed,
+            ...acc,
+            photoUrl: acc.photoUrl !== undefined ? acc.photoUrl : seed?.photoUrl,
+            positionTitle: acc.positionTitle ?? seed?.positionTitle,
+            department: acc.department ?? seed?.department,
+            phone: acc.phone ?? seed?.phone,
+            email: acc.email ?? seed?.email,
+            licenseOrCode: acc.licenseOrCode ?? seed?.licenseOrCode,
+            status: acc.status ?? seed?.status ?? 'ใช้งานปกติ',
+          });
         }
       }
       for (const [uname, seed] of defaultAccounts.entries()) {
@@ -462,7 +614,7 @@ function canActorManageTarget(actor: AccountRecord, target: AccountRecord): bool
 
 async function startServer(): Promise<void> {
   const app = express();
-  app.use(express.json({ limit: '2mb' }));
+  app.use(express.json({ limit: '6mb' }));
 
   app.get('/api/auth/bootstrap-status', (_req: Request, res: Response) => {
     const adminAcc = accountStore.get('admin');
@@ -472,6 +624,10 @@ async function startServer(): Promise<void> {
       role: acc.role,
       displayName: acc.displayName,
       affiliation: acc.affiliation,
+      photoUrl: acc.photoUrl || undefined,
+      positionTitle: acc.positionTitle,
+      department: acc.department,
+      status: acc.status ?? 'ใช้งานปกติ',
       studentId: acc.studentId,
       assignedCourseCodes: acc.assignedCourseCodes,
       hasPasswordSet: Boolean(acc.passwordHash),
@@ -559,6 +715,13 @@ async function startServer(): Promise<void> {
       return;
     }
 
+    if (account.status === 'ระงับชั่วคราว') {
+      res.status(403).json({
+        error: 'บัญชีสมาชิกนี้ถูกระงับการใช้งานชั่วคราว กรุณาติดต่อผู้ดูแลระบบ',
+      });
+      return;
+    }
+
     const valid = verifyPassword(password, account.salt, account.passwordHash);
     if (!valid) {
       res.status(401).json({ error: 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง' });
@@ -642,6 +805,14 @@ async function startServer(): Promise<void> {
       displayName?: unknown;
       role?: unknown;
       affiliation?: unknown;
+      photoUrl?: unknown;
+      positionTitle?: unknown;
+      department?: unknown;
+      phone?: unknown;
+      email?: unknown;
+      licenseOrCode?: unknown;
+      status?: unknown;
+      notes?: unknown;
       studentId?: unknown;
       assignedCourseCodes?: unknown;
     };
@@ -693,6 +864,32 @@ async function startServer(): Promise<void> {
       typeof body.affiliation === 'string' && body.affiliation.trim()
         ? body.affiliation.trim().slice(0, 160)
         : 'ศูนย์แพทยศาสตรศึกษาชั้นคลินิก รพ.สุรินทร์';
+    const photoUrl = sanitizeServerAvatarUrl(body.photoUrl);
+    const positionTitle =
+      typeof body.positionTitle === 'string' && body.positionTitle.trim()
+        ? body.positionTitle.trim().slice(0, 120)
+        : undefined;
+    const department =
+      typeof body.department === 'string' && body.department.trim()
+        ? body.department.trim().slice(0, 120)
+        : undefined;
+    const phone =
+      typeof body.phone === 'string' && body.phone.trim()
+        ? body.phone.trim().slice(0, 60)
+        : undefined;
+    const email =
+      typeof body.email === 'string' && body.email.trim()
+        ? body.email.trim().slice(0, 120)
+        : undefined;
+    const licenseOrCode =
+      typeof body.licenseOrCode === 'string' && body.licenseOrCode.trim()
+        ? body.licenseOrCode.trim().slice(0, 60)
+        : undefined;
+    const status = normalizeMemberStatus(body.status) ?? 'ใช้งานปกติ';
+    const notes =
+      typeof body.notes === 'string' && body.notes.trim()
+        ? body.notes.trim().slice(0, 400)
+        : undefined;
     const studentId =
       typeof body.studentId === 'string' && body.studentId.trim()
         ? body.studentId.trim().slice(0, 20)
@@ -712,6 +909,14 @@ async function startServer(): Promise<void> {
       level: requestedRole === 'student' ? 1 : requestedRole === 'faculty' ? 2 : 3,
       displayName,
       affiliation,
+      photoUrl: photoUrl || undefined,
+      positionTitle,
+      department,
+      phone,
+      email,
+      licenseOrCode,
+      status,
+      notes,
       studentId: requestedRole === 'student' ? studentId : undefined,
       assignedCourseCodes:
         actor.role === 'course_officer' && requestedRole === 'faculty'
@@ -770,6 +975,14 @@ async function startServer(): Promise<void> {
       displayName?: unknown;
       role?: unknown;
       affiliation?: unknown;
+      photoUrl?: unknown;
+      positionTitle?: unknown;
+      department?: unknown;
+      phone?: unknown;
+      email?: unknown;
+      licenseOrCode?: unknown;
+      status?: unknown;
+      notes?: unknown;
       studentId?: unknown;
       assignedCourseCodes?: unknown;
       newPassword?: unknown;
@@ -803,6 +1016,58 @@ async function startServer(): Promise<void> {
     }
     if (typeof body.affiliation === 'string' && body.affiliation.trim()) {
       target.affiliation = body.affiliation.trim().slice(0, 160);
+    }
+    if (body.photoUrl !== undefined) {
+      const cleanedPhoto = sanitizeServerAvatarUrl(body.photoUrl);
+      if (cleanedPhoto !== undefined) {
+        target.photoUrl = cleanedPhoto;
+      }
+    }
+    if (body.positionTitle !== undefined) {
+      target.positionTitle =
+        typeof body.positionTitle === 'string' && body.positionTitle.trim()
+          ? body.positionTitle.trim().slice(0, 120)
+          : undefined;
+    }
+    if (body.department !== undefined) {
+      target.department =
+        typeof body.department === 'string' && body.department.trim()
+          ? body.department.trim().slice(0, 120)
+          : undefined;
+    }
+    if (body.phone !== undefined) {
+      target.phone =
+        typeof body.phone === 'string' && body.phone.trim()
+          ? body.phone.trim().slice(0, 60)
+          : undefined;
+    }
+    if (body.email !== undefined) {
+      target.email =
+        typeof body.email === 'string' && body.email.trim()
+          ? body.email.trim().slice(0, 120)
+          : undefined;
+    }
+    if (body.licenseOrCode !== undefined) {
+      target.licenseOrCode =
+        typeof body.licenseOrCode === 'string' && body.licenseOrCode.trim()
+          ? body.licenseOrCode.trim().slice(0, 60)
+          : undefined;
+    }
+    if (body.status !== undefined) {
+      const nextStatus = normalizeMemberStatus(body.status);
+      if (nextStatus) {
+        if (target.username === actor.username && nextStatus === 'ระงับชั่วคราว') {
+          res.status(400).json({ error: 'ไม่สามารถระงับบัญชีของตนเองที่กำลังใช้งานอยู่ได้' });
+          return;
+        }
+        target.status = nextStatus;
+      }
+    }
+    if (body.notes !== undefined) {
+      target.notes =
+        typeof body.notes === 'string' && body.notes.trim()
+          ? body.notes.trim().slice(0, 400)
+          : undefined;
     }
     if (body.studentId !== undefined) {
       const sid = typeof body.studentId === 'string' ? body.studentId.trim().slice(0, 20) : '';

@@ -40,6 +40,7 @@ import { ResilientImage } from './ResilientImage';
 import { StudentAvatar } from './StudentAvatar';
 import { WardRotationCalendar } from './WardRotationCalendar';
 import { WorkforceCohortDashboard } from './WorkforceCohortDashboard';
+import { AgencyLogo } from './AgencyLogo';
 
 interface OverviewSectionProps {
   role: UserRole;
@@ -163,26 +164,29 @@ export function OverviewSection({
             />
 
             <div className="space-y-5 relative z-10">
-              <div className="flex flex-wrap items-center gap-3">
-                <span className="text-xs font-semibold text-[#7DD3FC] tracking-wide">
-                  โครงการผลิตแพทย์เพิ่มเพื่อชาวชนบท (CPIRD) · โรงพยาบาลสุรินทร์
-                </span>
-                {/* Animated ECG Waveform Motif */}
-                <svg
-                  viewBox="0 0 120 24"
-                  className="w-24 h-5 text-[#38BDF8] shrink-0"
-                  fill="none"
-                  aria-hidden="true"
-                >
-                  <path
-                    d="M0 12 H28 L34 12 L38 4 L43 20 L48 8 L53 15 L57 12 H88 L93 5 L98 18 L103 12 H120"
-                    stroke="currentColor"
-                    strokeWidth="1.75"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="animate-med-ecg"
-                  />
-                </svg>
+              <div className="flex flex-wrap items-center gap-3.5">
+                <AgencyLogo size="lg" className="animate-med-float" />
+                <div className="space-y-1">
+                  <div className="text-xs font-semibold text-[#7DD3FC] tracking-wide">
+                    โครงการผลิตแพทย์เพิ่มเพื่อชาวชนบท (CPIRD) · โรงพยาบาลสุรินทร์
+                  </div>
+                  {/* Animated ECG Waveform Motif */}
+                  <svg
+                    viewBox="0 0 120 24"
+                    className="w-24 h-5 text-[#38BDF8]"
+                    fill="none"
+                    aria-hidden="true"
+                  >
+                    <path
+                      d="M0 12 H28 L34 12 L38 4 L43 20 L48 8 L53 15 L57 12 H88 L93 5 L98 18 L103 12 H120"
+                      stroke="currentColor"
+                      strokeWidth="1.75"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="animate-med-ecg"
+                    />
+                  </svg>
+                </div>
               </div>
 
               <h1 className="font-serif text-3xl sm:text-4xl lg:text-[2.65rem] font-bold leading-[1.2] text-white [text-wrap:balance] drop-shadow-[0_2px_12px_rgba(4,24,59,0.55)]">

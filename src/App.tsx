@@ -246,11 +246,21 @@ export default function App() {
       'clinicalPersonnel',
       INITIAL_CLINICAL_PERSONNEL
     );
-    return Array.isArray(saved) && saved.length > 0 ? saved : INITIAL_CLINICAL_PERSONNEL;
+    if (!Array.isArray(saved) || saved.length === 0) return INITIAL_CLINICAL_PERSONNEL;
+    const seedPhotoById = new Map(INITIAL_CLINICAL_PERSONNEL.map((p) => [p.id, p.photoUrl]));
+    return saved.map((p) => ({
+      ...p,
+      photoUrl: p.photoUrl !== undefined ? p.photoUrl : seedPhotoById.get(p.id),
+    }));
   });
   const [cohortStudents, setCohortStudents] = useState<CohortStudentRecord[]>(() => {
     const saved = loadSavedState<CohortStudentRecord[]>('cohortStudents', COHORT_STUDENTS);
-    return Array.isArray(saved) && saved.length > 0 ? saved : COHORT_STUDENTS;
+    if (!Array.isArray(saved) || saved.length === 0) return COHORT_STUDENTS;
+    const seedPhotoById = new Map(COHORT_STUDENTS.map((s) => [s.studentId, s.photoUrl]));
+    return saved.map((s) => ({
+      ...s,
+      photoUrl: s.photoUrl !== undefined ? s.photoUrl : seedPhotoById.get(s.studentId),
+    }));
   });
   const [departments, setDepartments] = useState<ClinicalDepartment[]>(() => {
     const saved = loadSavedState<ClinicalDepartment[]>('departments', CLINICAL_DEPARTMENTS);
@@ -410,9 +420,13 @@ export default function App() {
       };
     });
   });
-  const [studentPhotos, setStudentPhotos] = useState<StudentPhotoMap>(() =>
-    loadSavedState('studentPhotos', INITIAL_STUDENT_PHOTOS)
-  );
+  const [studentPhotos, setStudentPhotos] = useState<StudentPhotoMap>(() => {
+    const saved = loadSavedState<StudentPhotoMap>('studentPhotos', INITIAL_STUDENT_PHOTOS);
+    return {
+      ...INITIAL_STUDENT_PHOTOS,
+      ...(saved && typeof saved === 'object' ? saved : {}),
+    };
+  });
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>(() =>
     loadSavedState('leaveRequests', INITIAL_LEAVE_REQUESTS)
   );
@@ -847,8 +861,30 @@ export default function App() {
       if (Array.isArray(s.preceptorFeedbacks) && s.preceptorFeedbacks.length > 0) setPreceptorFeedbacks(s.preceptorFeedbacks as PreceptorFeedback[]);
       if (Array.isArray(s.bedsideCheckIns) && s.bedsideCheckIns.length > 0) setBedsideCheckIns(s.bedsideCheckIns as BedsideCheckInRecord[]);
       if (Array.isArray(s.customQrStations) && s.customQrStations.length > 0) setCustomQrStations(s.customQrStations as FacultyGeneratedQrStation[]);
-      if (Array.isArray(s.clinicalPersonnel) && s.clinicalPersonnel.length > 0) setClinicalPersonnel(s.clinicalPersonnel as ClinicalPersonnelRecord[]);
-      if (Array.isArray(s.cohortStudents) && s.cohortStudents.length > 0) setCohortStudents(s.cohortStudents as CohortStudentRecord[]);
+      if (Array.isArray(s.clinicalPersonnel) && s.clinicalPersonnel.length > 0) {
+        const seedPhotoById = new Map(INITIAL_CLINICAL_PERSONNEL.map((p) => [p.id, p.photoUrl]));
+        setClinicalPersonnel(
+          (s.clinicalPersonnel as ClinicalPersonnelRecord[]).map((p) => ({
+            ...p,
+            photoUrl: p.photoUrl !== undefined ? p.photoUrl : seedPhotoById.get(p.id),
+          }))
+        );
+      }
+      if (Array.isArray(s.cohortStudents) && s.cohortStudents.length > 0) {
+        const seedPhotoById = new Map(COHORT_STUDENTS.map((st) => [st.studentId, st.photoUrl]));
+        setCohortStudents(
+          (s.cohortStudents as CohortStudentRecord[]).map((st) => ({
+            ...st,
+            photoUrl: st.photoUrl !== undefined ? st.photoUrl : seedPhotoById.get(st.studentId),
+          }))
+        );
+      }
+      if (s.studentPhotos && typeof s.studentPhotos === 'object') {
+        setStudentPhotos({
+          ...INITIAL_STUDENT_PHOTOS,
+          ...(s.studentPhotos as StudentPhotoMap),
+        });
+      }
       if (Array.isArray(s.rotationBlocks)) setRotationBlocks(s.rotationBlocks as RotationScheduleBlock[]);
       if (Array.isArray(s.gradeSignOffs)) setGradeSignOffs(s.gradeSignOffs as CourseGradeSignOff[]);
       if (Array.isArray(syncRes.auditLogs) && syncRes.auditLogs.length > 0) {
@@ -1766,25 +1802,45 @@ export default function App() {
     );
   };
 
+  const handleSyncStudentPhoto = (studentId: string, photoUrl: string) => {
+    const clean = photoUrl.trim();
+    setStudentPhotos((prev) => {
+      const next = { ...prev };
+      if (clean) {
+        next[studentId] = clean;
+      } else {
+        delete next[studentId];
+      }
+      return next;
+    });
+    setCohortStudents((prev) =>
+      prev.map((s) => (s.studentId === studentId ? { ...s, photoUrl: clean || undefined } : s))
+    );
+  };
+
   const handleUploadStudentPhoto = (studentId: string, dataUrl: string) => {
-    setStudentPhotos((prev) => ({ ...prev, [studentId]: dataUrl }));
-    const student = COHORT_STUDENTS.find((s) => s.studentId === studentId);
+    handleSyncStudentPhoto(studentId, dataUrl);
+    const student =
+      cohortStudents.find((s) => s.studentId === studentId) ??
+      COHORT_STUDENTS.find((s) => s.studentId === studentId);
     showToast(
       `อัปโหลดรูปถ่าย ${student?.studentName ?? studentId} เรียบร้อยแล้ว`
     );
   };
 
   const handleRemoveStudentPhoto = (studentId: string) => {
-    setStudentPhotos((prev) => {
-      const next = { ...prev };
-      delete next[studentId];
-      return next;
-    });
+    handleSyncStudentPhoto(studentId, '');
     showToast('ลบรูปถ่ายนักศึกษาออกจากระบบแล้ว');
   };
 
   const handleResetAllPhotos = () => {
     setStudentPhotos(INITIAL_STUDENT_PHOTOS);
+    setCohortStudents((prev) =>
+      prev.map((s) => ({
+        ...s,
+        photoUrl: INITIAL_STUDENT_PHOTOS[s.studentId] ?? s.photoUrl,
+      }))
+    );
     showToast('คืนค่ารูปถ่ายนักศึกษาเริ่มต้นทั้งหมดเรียบร้อยแล้ว');
   };
 
@@ -2866,6 +2922,8 @@ export default function App() {
         onClose={() => setAuthModalOpen(false)}
         authToken={authToken}
         authUser={authUser}
+        studentPhotos={studentPhotos}
+        onSyncStudentPhoto={handleSyncStudentPhoto}
         onAuthenticated={handleAuthenticated}
         onUpdatedProfile={(updated) => {
           setAuthUser(updated);
@@ -2978,6 +3036,8 @@ export default function App() {
           onSaveClinicalPersonnel={runAdminOnly('แก้ไขรายชื่อแพทย์ Intern / พี่เลี้ยง / ประจำบ้าน', setClinicalPersonnel)}
           cohortStudents={cohortStudents}
           onSaveCohortStudents={runAdminOnly('แก้ไขรายชื่อนักศึกษาแพทย์ชั้นคลินิก', setCohortStudents)}
+          studentPhotos={studentPhotos}
+          onSyncStudentPhoto={handleSyncStudentPhoto}
           onOpenAuthManage={() => {
             setAdminBackOfficeOpen(false);
             handleOpenAuthModal('manage');

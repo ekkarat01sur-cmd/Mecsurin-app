@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Camera,
   Check,
   Copy,
   Download,
@@ -11,11 +12,21 @@ import {
   Search,
   ShieldCheck,
   Trash2,
+  Upload,
   UserPlus,
   Users,
   X,
 } from 'lucide-react';
-import { AuthUserProfile, UserRole } from '../types/medicalSchool';
+import {
+  AuthUserProfile,
+  MemberAccountStatus,
+  StudentPhotoMap,
+  UserRole,
+} from '../types/medicalSchool';
+import {
+  CLINICAL_DEPARTMENTS,
+  PRESET_MEMBER_PORTRAITS,
+} from '../data/initialMedicalData';
 import {
   BootstrapDirectoryEntry,
   IssuedCredentialSlip,
@@ -30,6 +41,11 @@ import {
   setupAdminAccount,
   updateMemberAccount,
 } from '../utils/authClient';
+import {
+  compressAvatarFileToDataUrl,
+  sanitizeAvatarUrlInput,
+} from '../utils/imageUtils';
+import { StudentAvatar } from './StudentAvatar';
 
 interface AuthPortalModalProps {
   isOpen: boolean;
@@ -37,6 +53,8 @@ interface AuthPortalModalProps {
   onClose: () => void;
   authToken: string | null;
   authUser: AuthUserProfile | null;
+  studentPhotos?: StudentPhotoMap;
+  onSyncStudentPhoto?: (studentId: string, photoUrl: string) => void;
   onAuthenticated: (token: string, user: AuthUserProfile) => void;
   onUpdatedProfile: (user: AuthUserProfile) => void;
 }
@@ -48,12 +66,157 @@ const ROLE_LABELS: Record<UserRole, string> = {
   admin: 'ระดับ 3B: แอดมิน / ประธานหลักสูตร',
 };
 
+const DEPARTMENT_SUGGESTIONS: string[] = [
+  'สำนักงานศูนย์แพทยศาสตรศึกษาชั้นคลินิก',
+  ...CLINICAL_DEPARTMENTS.map((d) => d.nameTh),
+];
+
+const STATUS_BADGE_CLASS: Record<MemberAccountStatus, string> = {
+  ใช้งานปกติ: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  'ลาศึกษาต่อ/ประชุม': 'bg-amber-50 text-amber-800 border-amber-200',
+  ระงับชั่วคราว: 'bg-rose-50 text-rose-700 border-rose-200',
+};
+
+interface MemberPhotoEditorProps {
+  label: string;
+  displayName: string;
+  studentId?: string;
+  photoUrl: string;
+  onChange: (nextUrl: string) => void;
+}
+
+function MemberPhotoEditor({
+  label,
+  displayName,
+  studentId,
+  photoUrl,
+  onChange,
+}: MemberPhotoEditorProps) {
+  const fileRef = useRef<HTMLInputElement | null>(null);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+
+  const handleFileChange = async (file: File) => {
+    setPhotoError(null);
+    try {
+      const compressed = await compressAvatarFileToDataUrl(file, 320, 0.84);
+      onChange(compressed);
+    } catch (err) {
+      setPhotoError(
+        err instanceof Error ? err.message : 'ไม่สามารถอัปโหลดรูปภาพได้'
+      );
+    }
+  };
+
+  return (
+    <div className="rounded-lg border border-slate-200 bg-slate-50/70 p-3 space-y-2.5">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-3 min-w-0">
+          <StudentAvatar
+            photoUrl={photoUrl}
+            studentId={studentId}
+            studentName={displayName || 'สมาชิกใหม่'}
+            size="md"
+          />
+          <div className="min-w-0">
+            <div className="text-xs font-semibold text-slate-800 flex items-center gap-1.5">
+              <Camera className="w-3.5 h-3.5 text-[#08347A]" aria-hidden="true" />
+              <span>{label}</span>
+            </div>
+            <div className="text-[11px] text-slate-500">
+              อัปโหลดรูปจากเครื่อง วางลิงก์ URL หรือเลือกรูปมาตรฐานด้านล่าง
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) void handleFileChange(file);
+              e.target.value = '';
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            className="inline-flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-medium text-white bg-[#08347A] hover:bg-[#0D58CF] rounded-md cursor-pointer"
+          >
+            <Upload className="w-3 h-3" aria-hidden="true" />
+            <span>อัปโหลดรูป</span>
+          </button>
+          {photoUrl.trim() && (
+            <button
+              type="button"
+              onClick={() => {
+                setPhotoError(null);
+                onChange('');
+              }}
+              className="inline-flex items-center gap-1 px-2 py-1.5 text-[11px] font-medium text-rose-700 bg-rose-50 border border-rose-200 hover:bg-rose-100 rounded-md cursor-pointer"
+            >
+              <Trash2 className="w-3 h-3" aria-hidden="true" />
+              <span>ลบรูป</span>
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+        <input
+          type="text"
+          value={photoUrl}
+          onChange={(e) => {
+            setPhotoError(null);
+            onChange(e.target.value);
+          }}
+          placeholder="หรือวาง URL รูปภาพ (https://... หรือ ./src/assets/...)"
+          className="flex-1 px-2.5 py-1.5 text-[11px] font-mono bg-white border border-slate-300 rounded-md"
+        />
+        <div className="flex flex-wrap items-center gap-1">
+          {PRESET_MEMBER_PORTRAITS.map((preset) => (
+            <button
+              key={preset.url}
+              type="button"
+              onClick={() => {
+                setPhotoError(null);
+                onChange(preset.url);
+              }}
+              className={`inline-flex items-center gap-1 px-2 py-1 text-[10px] font-medium rounded-md border cursor-pointer transition-colors ${
+                photoUrl === preset.url
+                  ? 'bg-[#08347A] text-white border-[#08347A]'
+                  : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+              }`}
+              title={preset.label}
+            >
+              <img
+                src={preset.url}
+                alt={preset.label}
+                className="w-4 h-4 rounded-sm object-cover object-top"
+              />
+              <span>{preset.label.replace('แพทย์/นักศึกษา', '')}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {photoError && (
+        <div className="text-[11px] font-medium text-rose-700">{photoError}</div>
+      )}
+    </div>
+  );
+}
+
 export function AuthPortalModal({
   isOpen,
   initialTab = 'login',
   onClose,
   authToken,
   authUser,
+  studentPhotos = {},
+  onSyncStudentPhoto,
   onAuthenticated,
   onUpdatedProfile,
 }: AuthPortalModalProps) {
@@ -86,6 +249,16 @@ export function AuthPortalModal({
   const [newUserAffiliation, setNewUserAffiliation] = useState('');
   const [newUserStudentId, setNewUserStudentId] = useState('');
   const [newUserCourseCodes, setNewUserCourseCodes] = useState('');
+  const [newUserPhotoUrl, setNewUserPhotoUrl] = useState<string>(
+    PRESET_MEMBER_PORTRAITS[0]?.url ?? ''
+  );
+  const [newUserPositionTitle, setNewUserPositionTitle] = useState('');
+  const [newUserDepartment, setNewUserDepartment] = useState('');
+  const [newUserPhone, setNewUserPhone] = useState('');
+  const [newUserEmail, setNewUserEmail] = useState('');
+  const [newUserLicenseOrCode, setNewUserLicenseOrCode] = useState('');
+  const [newUserStatus, setNewUserStatus] = useState<MemberAccountStatus>('ใช้งานปกติ');
+  const [newUserNotes, setNewUserNotes] = useState('');
   const [manageMessage, setManageMessage] = useState<string | null>(null);
   const [manageError, setManageError] = useState<string | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
@@ -97,6 +270,15 @@ export function AuthPortalModal({
   const [editAffiliation, setEditAffiliation] = useState('');
   const [editStudentId, setEditStudentId] = useState('');
   const [editCourseCodes, setEditCourseCodes] = useState('');
+  const [editPhotoUrl, setEditPhotoUrl] = useState('');
+  const [editPositionTitle, setEditPositionTitle] = useState('');
+  const [editDepartment, setEditDepartment] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [editLicenseOrCode, setEditLicenseOrCode] = useState('');
+  const [editStatus, setEditStatus] = useState<MemberAccountStatus>('ใช้งานปกติ');
+  const [editNotes, setEditNotes] = useState('');
+  const [editNewPassword, setEditNewPassword] = useState('');
   const [savingEdit, setSavingEdit] = useState(false);
   const [confirmDeleteUsername, setConfirmDeleteUsername] = useState<string | null>(null);
   const [deletingUsername, setDeletingUsername] = useState<string | null>(null);
@@ -266,6 +448,15 @@ export function AuthPortalModal({
       .map((c) => c.trim().toUpperCase())
       .filter(Boolean);
 
+    const trimmedPhoto = newUserPhotoUrl.trim();
+    const cleanedPhoto = trimmedPhoto ? sanitizeAvatarUrlInput(trimmedPhoto) : undefined;
+    if (trimmedPhoto && !cleanedPhoto) {
+      setManageError(
+        'ลิงก์รูปภาพไม่ถูกต้อง (รองรับเฉพาะ https://, http://, ./, / หรือไฟล์รูปภาพที่อัปโหลด)'
+      );
+      return;
+    }
+
     try {
       const data = await createMemberAccount(authToken, {
         username: customIssueUsername.trim(),
@@ -273,12 +464,27 @@ export function AuthPortalModal({
         displayName: newUserDisplayName.trim() || customIssueUsername.trim(),
         role: newUserRole,
         affiliation: newUserAffiliation.trim() || undefined,
+        photoUrl: cleanedPhoto,
+        positionTitle: newUserPositionTitle.trim() || undefined,
+        department: newUserDepartment.trim() || undefined,
+        phone: newUserPhone.trim() || undefined,
+        email: newUserEmail.trim() || undefined,
+        licenseOrCode: newUserLicenseOrCode.trim() || undefined,
+        status: newUserStatus,
+        notes: newUserNotes.trim() || undefined,
         studentId: newUserRole === 'student' ? newUserStudentId.trim() || undefined : undefined,
         assignedCourseCodes: parsedCourses.length > 0 ? parsedCourses : undefined,
       });
       if (!data.ok || !data.issuedCredentials) {
         setManageError(data.error ?? 'ไม่สามารถสร้างบัญชีสมาชิกได้');
         return;
+      }
+      if (
+        data.user?.role === 'student' &&
+        data.user.studentId &&
+        data.user.photoUrl !== undefined
+      ) {
+        onSyncStudentPhoto?.(data.user.studentId, data.user.photoUrl);
       }
       setIssuedSlips((prev) => [
         data.issuedCredentials!,
@@ -293,6 +499,13 @@ export function AuthPortalModal({
       setNewUserAffiliation('');
       setNewUserStudentId('');
       setNewUserCourseCodes('');
+      setNewUserPositionTitle('');
+      setNewUserDepartment('');
+      setNewUserPhone('');
+      setNewUserEmail('');
+      setNewUserLicenseOrCode('');
+      setNewUserStatus('ใช้งานปกติ');
+      setNewUserNotes('');
       await loadManagedUsers(authToken);
       await loadBootstrapStatus();
     } catch {
@@ -310,6 +523,21 @@ export function AuthPortalModal({
     setEditAffiliation(u.affiliation);
     setEditStudentId(u.studentId ?? '');
     setEditCourseCodes((u.assignedCourseCodes ?? []).join(', '));
+    setEditPhotoUrl(
+      u.photoUrl !== undefined
+        ? u.photoUrl
+        : u.studentId
+          ? studentPhotos[u.studentId] ?? ''
+          : ''
+    );
+    setEditPositionTitle(u.positionTitle ?? '');
+    setEditDepartment(u.department ?? '');
+    setEditPhone(u.phone ?? '');
+    setEditEmail(u.email ?? '');
+    setEditLicenseOrCode(u.licenseOrCode ?? '');
+    setEditStatus(u.status ?? 'ใช้งานปกติ');
+    setEditNotes(u.notes ?? '');
+    setEditNewPassword('');
   };
 
   const handleSaveEditUser = async (e: React.FormEvent) => {
@@ -323,17 +551,50 @@ export function AuthPortalModal({
       .map((c) => c.trim().toUpperCase())
       .filter(Boolean);
 
+    const trimmedPhoto = editPhotoUrl.trim();
+    const cleanedPhoto = trimmedPhoto ? sanitizeAvatarUrlInput(trimmedPhoto) : '';
+    if (trimmedPhoto && !cleanedPhoto) {
+      setSavingEdit(false);
+      setManageError(
+        'ลิงก์รูปภาพไม่ถูกต้อง (รองรับเฉพาะ https://, http://, ./, / หรือไฟล์รูปภาพที่อัปโหลด)'
+      );
+      return;
+    }
+
+    const trimmedNewPassword = editNewPassword.trim();
+    if (trimmedNewPassword && (trimmedNewPassword.length < 8 || trimmedNewPassword.length > 72)) {
+      setSavingEdit(false);
+      setManageError('รหัสผ่านใหม่ต้องมีความยาว 8–72 ตัวอักษร');
+      return;
+    }
+
     try {
       const data = await updateMemberAccount(authToken, editingUsername, {
         displayName: editDisplayName.trim(),
         role: editRole,
         affiliation: editAffiliation.trim(),
+        photoUrl: cleanedPhoto,
+        positionTitle: editPositionTitle.trim(),
+        department: editDepartment.trim(),
+        phone: editPhone.trim(),
+        email: editEmail.trim(),
+        licenseOrCode: editLicenseOrCode.trim(),
+        status: editStatus,
+        notes: editNotes.trim(),
         studentId: editRole === 'student' ? editStudentId.trim() : '',
         assignedCourseCodes: parsedCourses,
+        newPassword: trimmedNewPassword || undefined,
       });
       if (!data.ok || !data.user) {
         setManageError(data.error ?? 'ไม่สามารถอัปเดตข้อมูลสมาชิกได้');
         return;
+      }
+      if (
+        data.user.role === 'student' &&
+        data.user.studentId &&
+        data.user.photoUrl !== undefined
+      ) {
+        onSyncStudentPhoto?.(data.user.studentId, data.user.photoUrl);
       }
       if (authUser && data.user.username === authUser.username) {
         onUpdatedProfile(data.user);
@@ -342,6 +603,7 @@ export function AuthPortalModal({
         `อัปเดตข้อมูลสมาชิก ${data.user.displayName} (@${data.user.username}) เรียบร้อยแล้ว`
       );
       setEditingUsername(null);
+      setEditNewPassword('');
       await loadManagedUsers(authToken);
       await loadBootstrapStatus();
     } catch {
@@ -438,7 +700,12 @@ export function AuthPortalModal({
         !q ||
         u.username.toLowerCase().includes(q) ||
         u.displayName.toLowerCase().includes(q) ||
-        (u.studentId && u.studentId.includes(q));
+        (u.studentId && u.studentId.toLowerCase().includes(q)) ||
+        (u.department && u.department.toLowerCase().includes(q)) ||
+        (u.positionTitle && u.positionTitle.toLowerCase().includes(q)) ||
+        (u.phone && u.phone.toLowerCase().includes(q)) ||
+        (u.email && u.email.toLowerCase().includes(q)) ||
+        (u.licenseOrCode && u.licenseOrCode.toLowerCase().includes(q));
       return matchRole && matchQuery;
     });
   }, [managedUsers, manageRoleFilter, manageSearch]);
@@ -666,12 +933,22 @@ export function AuthPortalModal({
                         onClick={() => setUsername(item.username)}
                         className="w-full px-4 py-2.5 text-left hover:bg-slate-50 flex items-center justify-between gap-3 cursor-pointer"
                       >
-                        <div className="min-w-0">
-                          <div className="text-xs font-semibold text-slate-900 truncate">
-                            {item.displayName}
-                          </div>
-                          <div className="text-[11px] text-slate-500 truncate">
-                            {item.affiliation}
+                        <div className="flex items-center gap-3 min-w-0">
+                          <StudentAvatar
+                            photoUrl={item.photoUrl}
+                            studentId={item.studentId}
+                            studentName={item.displayName}
+                            studentPhotos={studentPhotos}
+                            size="sm"
+                          />
+                          <div className="min-w-0">
+                            <div className="text-xs font-semibold text-slate-900 truncate">
+                              {item.displayName}
+                            </div>
+                            <div className="text-[11px] text-slate-500 truncate">
+                              {item.positionTitle ? `${item.positionTitle} · ` : ''}
+                              {item.affiliation}
+                            </div>
                           </div>
                         </div>
                         <div className="text-right shrink-0">
@@ -804,15 +1081,24 @@ export function AuthPortalModal({
               >
                 <div className="text-xs font-semibold text-slate-900 flex items-center gap-1.5">
                   <UserPlus className="w-4 h-4 text-[#0F2A4A]" aria-hidden="true" />
-                  เพิ่มสมาชิกใหม่ (Create Member)
+                  เพิ่มสมาชิกใหม่และข้อมูลส่วนตัวครบถ้วน (Create Member)
                 </div>
+
+                <MemberPhotoEditor
+                  label="รูปประจำตัวสมาชิกใหม่"
+                  displayName={newUserDisplayName || customIssueUsername || 'สมาชิกใหม่'}
+                  studentId={newUserRole === 'student' ? newUserStudentId : undefined}
+                  photoUrl={newUserPhotoUrl}
+                  onChange={setNewUserPhotoUrl}
+                />
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
                   <input
                     type="text"
                     required
                     value={customIssueUsername}
                     onChange={(e) => setCustomIssueUsername(e.target.value)}
-                    placeholder="Username (เช่น dr_wichai)"
+                    placeholder="Username * (เช่น dr_wichai)"
                     className="px-3 py-2 text-xs font-mono bg-white border border-slate-300 rounded-lg"
                   />
                   <input
@@ -820,7 +1106,7 @@ export function AuthPortalModal({
                     required
                     value={newUserDisplayName}
                     onChange={(e) => setNewUserDisplayName(e.target.value)}
-                    placeholder="ชื่อ-สกุล (เช่น นพ. วิชัย สุขใจ)"
+                    placeholder="ชื่อ-สกุล * (เช่น นพ. วิชัย สุขใจ)"
                     className="px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg"
                   />
                   <select
@@ -839,10 +1125,46 @@ export function AuthPortalModal({
                   </select>
                   <input
                     type="text"
+                    value={newUserPositionTitle}
+                    onChange={(e) => setNewUserPositionTitle(e.target.value)}
+                    placeholder="ตำแหน่ง (เช่น อาจารย์แพทย์, นศพ.ปี 6)"
+                    className="px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg"
+                  />
+                  <input
+                    type="text"
+                    list="surin-mec-dept-list"
+                    value={newUserDepartment}
+                    onChange={(e) => setNewUserDepartment(e.target.value)}
+                    placeholder="กลุ่มงาน / หน่วยงาน"
+                    className="px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg"
+                  />
+                  <input
+                    type="text"
                     value={newUserAffiliation}
                     onChange={(e) => setNewUserAffiliation(e.target.value)}
-                    placeholder="สังกัด / ชั้นปี (เช่น กลุ่มงานอายุรศาสตร์)"
+                    placeholder="สังกัด / รายละเอียดชั้นปี"
                     className="px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg"
+                  />
+                  <input
+                    type="text"
+                    value={newUserPhone}
+                    onChange={(e) => setNewUserPhone(e.target.value)}
+                    placeholder="เบอร์โทรศัพท์ / ภายใน"
+                    className="px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg"
+                  />
+                  <input
+                    type="email"
+                    value={newUserEmail}
+                    onChange={(e) => setNewUserEmail(e.target.value)}
+                    placeholder="อีเมลติดต่อ (ถ้ามี)"
+                    className="px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg"
+                  />
+                  <input
+                    type="text"
+                    value={newUserLicenseOrCode}
+                    onChange={(e) => setNewUserLicenseOrCode(e.target.value)}
+                    placeholder="เลข ว. / รหัสพนักงาน"
+                    className="px-3 py-2 text-xs font-mono bg-white border border-slate-300 rounded-lg"
                   />
                   {newUserRole === 'student' ? (
                     <input
@@ -861,12 +1183,27 @@ export function AuthPortalModal({
                       className="px-3 py-2 text-xs font-mono bg-white border border-slate-300 rounded-lg"
                     />
                   )}
+                  <select
+                    value={newUserStatus}
+                    onChange={(e) => setNewUserStatus(e.target.value as MemberAccountStatus)}
+                    className="px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg"
+                  >
+                    <option value="ใช้งานปกติ">สถานะ: ใช้งานปกติ</option>
+                    <option value="ลาศึกษาต่อ/ประชุม">สถานะ: ลาศึกษาต่อ/ประชุม</option>
+                  </select>
                   <input
                     type="text"
                     value={customIssuePassword}
                     onChange={(e) => setCustomIssuePassword(e.target.value)}
                     placeholder="รหัสผ่าน (>=8 ตัว หรือเว้นว่างเพื่อสุ่ม)"
-                    className="px-3 py-2 text-xs font-mono bg-white border border-slate-300 rounded-lg sm:col-span-2"
+                    className="px-3 py-2 text-xs font-mono bg-white border border-slate-300 rounded-lg"
+                  />
+                  <input
+                    type="text"
+                    value={newUserNotes}
+                    onChange={(e) => setNewUserNotes(e.target.value)}
+                    placeholder="หมายเหตุเพิ่มเติมเกี่ยวกับสมาชิก (ถ้ามี)"
+                    className="px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg sm:col-span-2 lg:col-span-3"
                   />
                   <button
                     type="submit"
@@ -875,6 +1212,12 @@ export function AuthPortalModal({
                     เพิ่มสมาชิกและออกรหัส
                   </button>
                 </div>
+
+                <datalist id="surin-mec-dept-list">
+                  {DEPARTMENT_SUGGESTIONS.map((dept) => (
+                    <option key={dept} value={dept} />
+                  ))}
+                </datalist>
               </form>
 
               {/* Existing User Directory */}
@@ -906,31 +1249,65 @@ export function AuthPortalModal({
                   </select>
                 </div>
 
-                <div className="divide-y divide-slate-200 max-h-[340px] overflow-y-auto">
+                <div className="divide-y divide-slate-200 max-h-[420px] overflow-y-auto">
                   {filteredManagedUsers.map((u) => {
                     const isEditing = editingUsername === u.username;
                     const isConfirmingDelete = confirmDeleteUsername === u.username;
                     const isSelf = authUser?.username === u.username;
+                    const statusLabel: MemberAccountStatus = u.status ?? 'ใช้งานปกติ';
 
                     return (
                       <div key={u.username} className="px-4 py-3 text-xs space-y-2.5">
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                          <div className="min-w-0">
-                            <div className="font-semibold text-slate-900 truncate">
-                              {u.displayName}{' '}
-                              <span className="font-mono text-[#0F766E]">@{u.username}</span>
-                              {u.studentId && (
-                                <span className="ml-2 font-mono text-[11px] text-slate-500">
-                                  รหัส {u.studentId}
+                          <div className="flex items-start gap-3 min-w-0">
+                            <StudentAvatar
+                              photoUrl={u.photoUrl}
+                              studentId={u.studentId}
+                              studentName={u.displayName}
+                              studentPhotos={studentPhotos}
+                              size="md"
+                            />
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <span className="font-semibold text-slate-900">
+                                  {u.displayName}
                                 </span>
-                              )}
-                            </div>
-                            <div className="text-[11px] text-slate-500 truncate mt-0.5">
-                              {ROLE_LABELS[u.role]} · {u.affiliation}
-                              {u.assignedCourseCodes && u.assignedCourseCodes.length > 0 && (
-                                <span className="font-mono text-[#0F2A4A]">
-                                  {' '}· วิชา: {u.assignedCourseCodes.join(', ')}
+                                <span className="font-mono text-[#0F766E]">@{u.username}</span>
+                                {u.studentId && (
+                                  <span className="font-mono text-[11px] text-slate-500">
+                                    รหัส {u.studentId}
+                                  </span>
+                                )}
+                                {u.licenseOrCode && (
+                                  <span className="font-mono text-[11px] text-[#08347A]">
+                                    [{u.licenseOrCode}]
+                                  </span>
+                                )}
+                                <span
+                                  className={`px-1.5 py-0.5 text-[10px] font-medium rounded-md border ${STATUS_BADGE_CLASS[statusLabel]}`}
+                                >
+                                  {statusLabel}
                                 </span>
+                              </div>
+                              <div className="text-[11px] text-slate-500 truncate mt-0.5">
+                                {ROLE_LABELS[u.role]}
+                                {u.positionTitle ? ` · ${u.positionTitle}` : ''}
+                                {u.department ? ` · ${u.department}` : ''}
+                                {u.affiliation ? ` · ${u.affiliation}` : ''}
+                                {u.assignedCourseCodes && u.assignedCourseCodes.length > 0 && (
+                                  <span className="font-mono text-[#0F2A4A]">
+                                    {' '}· วิชา: {u.assignedCourseCodes.join(', ')}
+                                  </span>
+                                )}
+                              </div>
+                              {(u.phone || u.email || u.notes) && (
+                                <div className="text-[11px] text-slate-500 truncate mt-0.5">
+                                  {u.phone ? `โทร: ${u.phone}` : ''}
+                                  {u.phone && u.email ? ' · ' : ''}
+                                  {u.email ? `อีเมล: ${u.email}` : ''}
+                                  {(u.phone || u.email) && u.notes ? ' · ' : ''}
+                                  {u.notes ? `หมายเหตุ: ${u.notes}` : ''}
+                                </div>
                               )}
                             </div>
                           </div>
@@ -952,7 +1329,7 @@ export function AuthPortalModal({
                               className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-md cursor-pointer whitespace-nowrap"
                             >
                               <Pencil className="w-3 h-3" aria-hidden="true" />
-                              <span>{isEditing ? 'ปิดแก้ไข' : 'แก้ไข'}</span>
+                              <span>{isEditing ? 'ปิดแก้ไข' : 'แก้ไขข้อมูล'}</span>
                             </button>
 
                             <button
@@ -1002,70 +1379,202 @@ export function AuthPortalModal({
                         {isEditing && (
                           <form
                             onSubmit={handleSaveEditUser}
-                            className="p-3 bg-slate-50 border border-slate-200 rounded-lg grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2"
+                            className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3"
                           >
-                            <input
-                              type="text"
-                              required
-                              value={editDisplayName}
-                              onChange={(e) => setEditDisplayName(e.target.value)}
-                              placeholder="ชื่อ-สกุล"
-                              className="px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded-md"
+                            <MemberPhotoEditor
+                              label={`รูปประจำตัวของ ${u.displayName}`}
+                              displayName={editDisplayName || u.displayName}
+                              studentId={editRole === 'student' ? editStudentId : undefined}
+                              photoUrl={editPhotoUrl}
+                              onChange={setEditPhotoUrl}
                             />
-                            <select
-                              value={editRole}
-                              disabled={isSelf}
-                              onChange={(e) => setEditRole(e.target.value as UserRole)}
-                              className="px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded-md disabled:opacity-60"
-                            >
-                              <option value="student">ระดับ 1: นักศึกษาแพทย์</option>
-                              <option value="faculty">ระดับ 2: อาจารย์แพทย์</option>
-                              {authUser?.role === 'admin' && (
-                                <>
-                                  <option value="course_officer">ระดับ 3A: นักวิชาการรายวิชา</option>
-                                  <option value="admin">ระดับ 3B: แอดมิน / ประธานฯ</option>
-                                </>
-                              )}
-                            </select>
-                            <input
-                              type="text"
-                              value={editAffiliation}
-                              onChange={(e) => setEditAffiliation(e.target.value)}
-                              placeholder="สังกัด / ชั้นปี"
-                              className="px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded-md"
-                            />
-                            {editRole === 'student' ? (
-                              <input
-                                type="text"
-                                value={editStudentId}
-                                onChange={(e) => setEditStudentId(e.target.value)}
-                                placeholder="รหัสนักศึกษา"
-                                className="px-2.5 py-1.5 text-xs font-mono bg-white border border-slate-300 rounded-md"
-                              />
-                            ) : (
-                              <input
-                                type="text"
-                                value={editCourseCodes}
-                                onChange={(e) => setEditCourseCodes(e.target.value)}
-                                placeholder="รหัสวิชา (เช่น SUR-MED-401)"
-                                className="px-2.5 py-1.5 text-xs font-mono bg-white border border-slate-300 rounded-md"
-                              />
-                            )}
-                            <div className="flex items-center gap-1.5">
-                              <button
-                                type="submit"
-                                disabled={savingEdit}
-                                className="inline-flex items-center justify-center gap-1 flex-1 px-3 py-1.5 text-xs font-semibold text-white bg-[#0D9488] hover:bg-[#0F766E] rounded-md cursor-pointer whitespace-nowrap disabled:opacity-60"
-                              >
-                                <Save className="w-3.5 h-3.5" aria-hidden="true" />
-                                <span>{savingEdit ? 'กำลังบันทึก...' : 'บันทึก'}</span>
-                              </button>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+                              <div>
+                                <label className="block text-[11px] font-medium text-slate-600 mb-1">
+                                  ชื่อ-สกุล *
+                                </label>
+                                <input
+                                  type="text"
+                                  required
+                                  value={editDisplayName}
+                                  onChange={(e) => setEditDisplayName(e.target.value)}
+                                  className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded-md"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[11px] font-medium text-slate-600 mb-1">
+                                  บทบาท / ระดับสิทธิ์
+                                </label>
+                                <select
+                                  value={editRole}
+                                  disabled={isSelf}
+                                  onChange={(e) => setEditRole(e.target.value as UserRole)}
+                                  className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded-md disabled:opacity-60"
+                                >
+                                  <option value="student">ระดับ 1: นักศึกษาแพทย์</option>
+                                  <option value="faculty">ระดับ 2: อาจารย์แพทย์</option>
+                                  {authUser?.role === 'admin' && (
+                                    <>
+                                      <option value="course_officer">ระดับ 3A: นักวิชาการรายวิชา</option>
+                                      <option value="admin">ระดับ 3B: แอดมิน / ประธานฯ</option>
+                                    </>
+                                  )}
+                                </select>
+                              </div>
+                              <div>
+                                <label className="block text-[11px] font-medium text-slate-600 mb-1">
+                                  ตำแหน่ง
+                                </label>
+                                <input
+                                  type="text"
+                                  value={editPositionTitle}
+                                  onChange={(e) => setEditPositionTitle(e.target.value)}
+                                  placeholder="เช่น อาจารย์แพทย์, นศพ.ปี 6"
+                                  className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded-md"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[11px] font-medium text-slate-600 mb-1">
+                                  กลุ่มงาน / หน่วยงาน
+                                </label>
+                                <input
+                                  type="text"
+                                  list="surin-mec-dept-list"
+                                  value={editDepartment}
+                                  onChange={(e) => setEditDepartment(e.target.value)}
+                                  placeholder="เช่น กลุ่มงานอายุรศาสตร์"
+                                  className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded-md"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[11px] font-medium text-slate-600 mb-1">
+                                  สังกัด / ชั้นปี
+                                </label>
+                                <input
+                                  type="text"
+                                  value={editAffiliation}
+                                  onChange={(e) => setEditAffiliation(e.target.value)}
+                                  className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded-md"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[11px] font-medium text-slate-600 mb-1">
+                                  เบอร์โทรศัพท์ / ภายใน
+                                </label>
+                                <input
+                                  type="text"
+                                  value={editPhone}
+                                  onChange={(e) => setEditPhone(e.target.value)}
+                                  placeholder="เช่น ภายใน 2101"
+                                  className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded-md"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[11px] font-medium text-slate-600 mb-1">
+                                  อีเมล
+                                </label>
+                                <input
+                                  type="email"
+                                  value={editEmail}
+                                  onChange={(e) => setEditEmail(e.target.value)}
+                                  placeholder="example@surinhospital.go.th"
+                                  className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded-md"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[11px] font-medium text-slate-600 mb-1">
+                                  เลข ว. / รหัสประจำตัว
+                                </label>
+                                <input
+                                  type="text"
+                                  value={editLicenseOrCode}
+                                  onChange={(e) => setEditLicenseOrCode(e.target.value)}
+                                  placeholder="เช่น ว.41208"
+                                  className="w-full px-2.5 py-1.5 text-xs font-mono bg-white border border-slate-300 rounded-md"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[11px] font-medium text-slate-600 mb-1">
+                                  {editRole === 'student' ? 'รหัสนักศึกษา' : 'รหัสวิชาที่รับผิดชอบ'}
+                                </label>
+                                {editRole === 'student' ? (
+                                  <input
+                                    type="text"
+                                    value={editStudentId}
+                                    onChange={(e) => setEditStudentId(e.target.value)}
+                                    placeholder="เช่น 64104218"
+                                    className="w-full px-2.5 py-1.5 text-xs font-mono bg-white border border-slate-300 rounded-md"
+                                  />
+                                ) : (
+                                  <input
+                                    type="text"
+                                    value={editCourseCodes}
+                                    onChange={(e) => setEditCourseCodes(e.target.value)}
+                                    placeholder="เช่น SUR-MED-401"
+                                    className="w-full px-2.5 py-1.5 text-xs font-mono bg-white border border-slate-300 rounded-md"
+                                  />
+                                )}
+                              </div>
+                              <div>
+                                <label className="block text-[11px] font-medium text-slate-600 mb-1">
+                                  สถานะบัญชี
+                                </label>
+                                <select
+                                  value={editStatus}
+                                  onChange={(e) =>
+                                    setEditStatus(e.target.value as MemberAccountStatus)
+                                  }
+                                  className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded-md"
+                                >
+                                  <option value="ใช้งานปกติ">ใช้งานปกติ</option>
+                                  <option value="ลาศึกษาต่อ/ประชุม">ลาศึกษาต่อ/ประชุม</option>
+                                  {!isSelf && (
+                                    <option value="ระงับชั่วคราว">ระงับชั่วคราว</option>
+                                  )}
+                                </select>
+                              </div>
+                              <div>
+                                <label className="block text-[11px] font-medium text-slate-600 mb-1">
+                                  กำหนดรหัสผ่านใหม่ (ถ้าต้องการเปลี่ยน)
+                                </label>
+                                <input
+                                  type="text"
+                                  value={editNewPassword}
+                                  onChange={(e) => setEditNewPassword(e.target.value)}
+                                  placeholder="เว้นว่างถ้าไม่เปลี่ยน (>=8 ตัว)"
+                                  className="w-full px-2.5 py-1.5 text-xs font-mono bg-white border border-slate-300 rounded-md"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[11px] font-medium text-slate-600 mb-1">
+                                  หมายเหตุ
+                                </label>
+                                <input
+                                  type="text"
+                                  value={editNotes}
+                                  onChange={(e) => setEditNotes(e.target.value)}
+                                  placeholder="บันทึกเพิ่มเติม..."
+                                  className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded-md"
+                                />
+                              </div>
+                            </div>
+
+                            <div className="flex items-center justify-end gap-2 pt-1">
                               <button
                                 type="button"
                                 onClick={() => setEditingUsername(null)}
-                                className="px-2.5 py-1.5 text-xs font-medium text-slate-600 bg-white border border-slate-300 hover:bg-slate-100 rounded-md cursor-pointer"
+                                className="px-3 py-1.5 text-xs font-medium text-slate-600 bg-white border border-slate-300 hover:bg-slate-100 rounded-md cursor-pointer"
                               >
                                 ยกเลิก
+                              </button>
+                              <button
+                                type="submit"
+                                disabled={savingEdit}
+                                className="inline-flex items-center justify-center gap-1 px-4 py-1.5 text-xs font-semibold text-white bg-[#0D9488] hover:bg-[#0F766E] rounded-md cursor-pointer whitespace-nowrap disabled:opacity-60"
+                              >
+                                <Save className="w-3.5 h-3.5" aria-hidden="true" />
+                                <span>{savingEdit ? 'กำลังบันทึก...' : 'บันทึกการแก้ไขทั้งหมด'}</span>
                               </button>
                             </div>
                           </form>

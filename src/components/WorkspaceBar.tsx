@@ -92,14 +92,13 @@ export function WorkspaceBar({
         <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-3">
           {isAuthenticated && authUser ? (
             <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-xs sm:text-sm text-slate-600">
-              {role === 'student' && (
-                <StudentAvatar
-                  studentId={currentStudentId}
-                  studentName={currentStudentName ?? displayName}
-                  studentPhotos={studentPhotos}
-                  size="xs"
-                />
-              )}
+              <StudentAvatar
+                photoUrl={authUser.photoUrl}
+                studentId={authUser.studentId ?? (role === 'student' ? currentStudentId : undefined)}
+                studentName={role === 'student' ? (currentStudentName ?? displayName) : displayName}
+                studentPhotos={studentPhotos}
+                size="xs"
+              />
               <span className="inline-flex items-center gap-1 font-semibold text-[#08347A]">
                 <Shield className="w-3.5 h-3.5 text-[#0284C7]" aria-hidden="true" />
                 ระดับสิทธิ์ {profile.level}
@@ -110,7 +109,9 @@ export function WorkspaceBar({
                 @{authUser.username}
               </span>
               <span aria-hidden="true" className="text-slate-300 hidden sm:inline">·</span>
-              <span className="hidden sm:inline">{affiliation}</span>
+              <span className="hidden sm:inline">
+                {authUser.positionTitle ? `${authUser.positionTitle} · ${affiliation}` : affiliation}
+              </span>
               {authUser.role === 'course_officer' &&
                 authUser.assignedCourseCodes &&
                 authUser.assignedCourseCodes.length > 0 && (

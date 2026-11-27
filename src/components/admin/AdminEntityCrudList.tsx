@@ -1,5 +1,11 @@
-import { useMemo, useState } from 'react';
-import { Check, Pencil, Plus, Search, Trash2, X } from 'lucide-react';
+import { useMemo, useRef, useState } from 'react';
+import { Camera, Check, Pencil, Plus, Search, Trash2, Upload, X } from 'lucide-react';
+import { PRESET_MEMBER_PORTRAITS } from '../../data/initialMedicalData';
+import {
+  compressAvatarFileToDataUrl,
+  sanitizeAvatarUrlInput,
+} from '../../utils/imageUtils';
+import { StudentAvatar } from '../StudentAvatar';
 
 export type CrudFieldType =
   | 'text'
@@ -8,7 +14,8 @@ export type CrudFieldType =
   | 'select'
   | 'checkbox'
   | 'date'
-  | 'lines';
+  | 'lines'
+  | 'image';
 
 export interface CrudFieldOption {
   value: string;
@@ -37,6 +44,8 @@ export interface AdminEntityCrudListProps<T> {
   getTitle: (item: T) => string;
   getMeta: (item: T) => string;
   getBadge?: (item: T) => string;
+  getAvatarUrl?: (item: T) => string | undefined;
+  getAvatarName?: (item: T) => string;
   fields: CrudFieldDef[];
   createDefaults: () => Record<string, string | number | boolean>;
   toFormValues: (item: T) => Record<string, string | number | boolean>;
@@ -57,6 +66,8 @@ export function AdminEntityCrudList<T>({
   getTitle,
   getMeta,
   getBadge,
+  getAvatarUrl,
+  getAvatarName,
   fields,
   createDefaults,
   toFormValues,
@@ -71,6 +82,7 @@ export function AdminEntityCrudList<T>({
   const [draft, setDraft] = useState<Record<string, string | number | boolean>>({});
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+  const imageFileInputRef = useRef<HTMLInputElement | null>(null);
 
   const filteredItems = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -107,6 +119,13 @@ export function AdminEntityCrudList<T>({
         const val = draft[field.key];
         if (val === undefined || val === null || String(val).trim() === '') {
           setFormError(`กรุณาระบุข้อมูล "${field.label}"`);
+          return;
+        }
+      }
+      if (field.type === 'image') {
+        const raw = String(draft[field.key] ?? '').trim();
+        if (raw && !sanitizeAvatarUrlInput(raw)) {
+          setFormError(`ลิงก์ "${field.label}" ไม่ถูกต้อง (รองรับ https://, http://, ./, / หรือไฟล์อัปโหลด)`);
           return;
         }
       }
@@ -188,9 +207,123 @@ export function AdminEntityCrudList<T>({
               const spanClass =
                 field.colSpan === 2 ||
                 field.type === 'textarea' ||
-                field.type === 'lines'
+                field.type === 'lines' ||
+                field.type === 'image'
                   ? 'sm:col-span-2'
                   : '';
+
+              if (field.type === 'image') {
+                const currentUrl = String(value ?? '');
+                const previewName =
+                  String(draft.fullName ?? draft.studentName ?? draft.displayName ?? '') ||
+                  'สมาชิก';
+
+                return (
+                  <div key={field.key} className={spanClass}>
+                    <label className="block text-xs font-medium text-slate-700 mb-1.5">
+                      {field.label}
+                    </label>
+                    <div className="rounded-lg border border-slate-200 bg-slate-50/70 p-3 space-y-2.5">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <StudentAvatar
+                            photoUrl={currentUrl}
+                            studentName={previewName}
+                            size="md"
+                          />
+                          <div className="text-[11px] text-slate-600">
+                            <div className="font-medium text-slate-800 flex items-center gap-1">
+                              <Camera className="w-3.5 h-3.5 text-[#08347A]" aria-hidden="true" />
+                              <span>ตัวอย่างรูปประจำตัว</span>
+                            </div>
+                            <div className="text-slate-500">
+                              อัปโหลดไฟล์ วางลิงก์ URL หรือเลือกรูปมาตรฐาน
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <input
+                            ref={imageFileInputRef}
+                            type="file"
+                            accept="image/png,image/jpeg,image/webp"
+                            className="hidden"
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0];
+                              e.target.value = '';
+                              if (!file) return;
+                              try {
+                                setFormError(null);
+                                const compressed = await compressAvatarFileToDataUrl(file, 320, 0.84);
+                                setDraft((prev) => ({ ...prev, [field.key]: compressed }));
+                              } catch (err) {
+                                setFormError(
+                                  err instanceof Error ? err.message : 'ไม่สามารถอัปโหลดรูปภาพได้'
+                                );
+                              }
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => imageFileInputRef.current?.click()}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-medium text-white bg-[#08347A] hover:bg-[#0D58CF] rounded-md cursor-pointer"
+                          >
+                            <Upload className="w-3 h-3" aria-hidden="true" />
+                            <span>อัปโหลดรูป</span>
+                          </button>
+                          {currentUrl.trim() && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setDraft((prev) => ({ ...prev, [field.key]: '' }))
+                              }
+                              className="inline-flex items-center gap-1 px-2 py-1.5 text-[11px] font-medium text-rose-700 bg-rose-50 border border-rose-200 hover:bg-rose-100 rounded-md cursor-pointer"
+                            >
+                              <Trash2 className="w-3 h-3" aria-hidden="true" />
+                              <span>ลบรูป</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                        <input
+                          type="text"
+                          value={currentUrl}
+                          onChange={(e) =>
+                            setDraft((prev) => ({ ...prev, [field.key]: e.target.value }))
+                          }
+                          placeholder="วาง URL รูปภาพ (https://... หรือ ./src/assets/...)"
+                          className="flex-1 px-2.5 py-1.5 text-[11px] font-mono bg-white border border-slate-300 rounded-md"
+                        />
+                        <div className="flex flex-wrap items-center gap-1">
+                          {PRESET_MEMBER_PORTRAITS.map((preset) => (
+                            <button
+                              key={preset.url}
+                              type="button"
+                              onClick={() =>
+                                setDraft((prev) => ({ ...prev, [field.key]: preset.url }))
+                              }
+                              className={`inline-flex items-center gap-1 px-2 py-1 text-[10px] font-medium rounded-md border cursor-pointer ${
+                                currentUrl === preset.url
+                                  ? 'bg-[#08347A] text-white border-[#08347A]'
+                                  : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                              }`}
+                            >
+                              <img
+                                src={preset.url}
+                                alt={preset.label}
+                                className="w-4 h-4 rounded-sm object-cover object-top"
+                              />
+                              <span>{preset.label.replace('แพทย์/นักศึกษา', '')}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
 
               if (field.type === 'checkbox') {
                 return (
@@ -323,19 +456,28 @@ export function AdminEntityCrudList<T>({
                   key={id}
                   className="px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs hover:bg-slate-50/70"
                 >
-                  <div className="min-w-0 space-y-0.5">
-                    <div className="flex flex-wrap items-center gap-2">
-                      {badge && (
-                        <span className="font-mono font-semibold text-[#0F766E]">
-                          {badge}
+                  <div className="flex items-start gap-3 min-w-0">
+                    {getAvatarUrl && (
+                      <StudentAvatar
+                        photoUrl={getAvatarUrl(item)}
+                        studentName={getAvatarName ? getAvatarName(item) : getTitle(item)}
+                        size="sm"
+                      />
+                    )}
+                    <div className="min-w-0 space-y-0.5">
+                      <div className="flex flex-wrap items-center gap-2">
+                        {badge && (
+                          <span className="font-mono font-semibold text-[#0F766E]">
+                            {badge}
+                          </span>
+                        )}
+                        <span className="font-semibold text-slate-900 break-words">
+                          {getTitle(item)}
                         </span>
-                      )}
-                      <span className="font-semibold text-slate-900 break-words">
-                        {getTitle(item)}
-                      </span>
-                    </div>
-                    <div className="text-[11px] text-slate-500 break-words">
-                      {getMeta(item)}
+                      </div>
+                      <div className="text-[11px] text-slate-500 break-words">
+                        {getMeta(item)}
+                      </div>
                     </div>
                   </div>
 

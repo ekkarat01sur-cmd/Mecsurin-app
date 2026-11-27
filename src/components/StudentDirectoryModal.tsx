@@ -22,6 +22,7 @@ import { COHORT_STUDENTS, CohortStudent } from '../data/initialMedicalData';
 import { computePeerCohortBadges } from '../utils/clinicalBadges';
 import { BadgeGlyph } from './ClinicalMilestoneBadgesPanel';
 import { StudentAvatar } from './StudentAvatar';
+import { compressAvatarFileToDataUrl } from '../utils/imageUtils';
 
 interface StudentDirectoryModalProps {
   isOpen: boolean;
@@ -35,35 +36,6 @@ interface StudentDirectoryModalProps {
   onUploadStudentPhoto: (studentId: string, dataUrl: string) => void;
   onRemoveStudentPhoto: (studentId: string) => void;
   onResetAllPhotos: () => void;
-}
-
-function compressImageToDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const img = new Image();
-      img.onload = () => {
-        const maxDim = 360;
-        const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
-        const targetW = Math.max(1, Math.round(img.width * scale));
-        const targetH = Math.max(1, Math.round(img.height * scale));
-        const canvas = document.createElement('canvas');
-        canvas.width = targetW;
-        canvas.height = targetH;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          resolve(String(reader.result));
-          return;
-        }
-        ctx.drawImage(img, 0, 0, targetW, targetH);
-        resolve(canvas.toDataURL('image/jpeg', 0.85));
-      };
-      img.onerror = () => reject(new Error('ไม่สามารถอ่านไฟล์รูปภาพได้'));
-      img.src = String(reader.result);
-    };
-    reader.onerror = () => reject(new Error('เกิดข้อผิดพลาดในการอ่านไฟล์'));
-    reader.readAsDataURL(file);
-  });
 }
 
 export function StudentDirectoryModal({
@@ -117,11 +89,15 @@ export function StudentDirectoryModal({
       return;
     }
     try {
-      const compressed = await compressImageToDataUrl(file);
+      const compressed = await compressAvatarFileToDataUrl(file, 360, 0.85);
       onUploadStudentPhoto(student.studentId, compressed);
       setActiveUploadStudent(null);
-    } catch {
-      setUploadError('ไม่สามารถประมวลผลรูปภาพได้ กรุณาลองใหม่อีกครั้ง');
+    } catch (err) {
+      setUploadError(
+        err instanceof Error
+          ? err.message
+          : 'ไม่สามารถประมวลผลรูปภาพได้ กรุณาลองใหม่อีกครั้ง'
+      );
     }
   };
 

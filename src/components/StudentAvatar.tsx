@@ -1,11 +1,12 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { COHORT_STUDENTS } from '../data/initialMedicalData';
 import { StudentPhotoMap } from '../types/medicalSchool';
 
 interface StudentAvatarProps {
   studentId?: string;
   studentName: string;
-  studentPhotos: StudentPhotoMap;
+  studentPhotos?: StudentPhotoMap;
+  photoUrl?: string;
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
   className?: string;
 }
@@ -18,8 +19,11 @@ const SIZE_CLASSES: Record<NonNullable<StudentAvatarProps['size']>, string> = {
   xl: 'w-20 h-20 text-lg rounded-xl',
 };
 
+const THAI_TITLE_PREFIX_REGEX =
+  /^(?:ศ\.พญ\.|ศ\.นพ\.|รศ\.พญ\.|รศ\.นพ\.|ผศ\.พญ\.|ผศ\.นพ\.|อ\.พญ\.|อ\.นพ\.|นศพ\.|พญ\.|นพ\.|ดร\.|อ\.|นางสาว|น\.ส\.|นาย|นาง)\s*/;
+
 function normalizeThaiName(name: string): string {
-  return name.replace(/^นศพ\.\s*/, '').replace(/\s+/g, '').trim();
+  return name.replace(THAI_TITLE_PREFIX_REGEX, '').replace(/\s+/g, '').trim();
 }
 
 export function resolveStudentIdByName(studentName: string): string | undefined {
@@ -31,7 +35,7 @@ export function resolveStudentIdByName(studentName: string): string | undefined 
 }
 
 function getThaiInitials(name: string): string {
-  const clean = name.replace(/^นศพ\.\s*/, '').trim();
+  const clean = name.replace(THAI_TITLE_PREFIX_REGEX, '').trim();
   const parts = clean.split(/\s+/);
   if (parts.length >= 2) {
     return `${parts[0].charAt(0)}${parts[1].charAt(0)}`;
@@ -42,15 +46,21 @@ function getThaiInitials(name: string): string {
 export function StudentAvatar({
   studentId,
   studentName,
-  studentPhotos,
+  studentPhotos = {},
+  photoUrl,
   size = 'sm',
   className = '',
 }: StudentAvatarProps) {
   const [imgError, setImgError] = useState(false);
 
   const resolvedId = studentId ?? resolveStudentIdByName(studentName);
-  const photoSrc = resolvedId ? studentPhotos[resolvedId] : undefined;
+  const directUrl = photoUrl?.trim();
+  const photoSrc = directUrl || (resolvedId ? studentPhotos[resolvedId] : undefined);
   const sizeClass = SIZE_CLASSES[size];
+
+  useEffect(() => {
+    setImgError(false);
+  }, [photoSrc]);
 
   if (photoSrc && !imgError) {
     return (

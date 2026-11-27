@@ -47,10 +47,13 @@ import {
   RoomBooking,
   RoomResource,
   StudentCourseScore,
+  StudentPhotoMap,
   UserRole,
   WelfareRequest,
 } from '../types/medicalSchool';
+import { PRESET_MEMBER_PORTRAITS } from '../data/initialMedicalData';
 import { createDefaultEnabledItemsMap } from '../data/evaluationFormsSchema';
+import { sanitizeAvatarUrlInput } from '../utils/imageUtils';
 import { AdminEntityCrudList } from './admin/AdminEntityCrudList';
 
 type BackOfficeDomain =
@@ -117,6 +120,8 @@ interface AdminBackOfficeModalProps {
   onSaveClinicalPersonnel: (next: ClinicalPersonnelRecord[]) => void;
   cohortStudents: CohortStudentRecord[];
   onSaveCohortStudents: (next: CohortStudentRecord[]) => void;
+  studentPhotos?: StudentPhotoMap;
+  onSyncStudentPhoto?: (studentId: string, photoUrl: string) => void;
   onOpenAuthManage: () => void;
   onOpenQrGenerator: () => void;
   onOpenSheetsSync: () => void;
@@ -209,6 +214,8 @@ export function AdminBackOfficeModal({
   onSaveClinicalPersonnel,
   cohortStudents,
   onSaveCohortStudents,
+  studentPhotos = {},
+  onSyncStudentPhoto,
   onOpenAuthManage,
   onOpenQrGenerator,
   onOpenSheetsSync,
@@ -2214,9 +2221,11 @@ export function AdminBackOfficeModal({
           {domain === 'personnel' && subEntity === 'clinicalPersonnel' && (
             <AdminEntityCrudList<ClinicalPersonnelRecord>
               title="ทำเนียบแพทย์ Intern · แพทย์พี่เลี้ยง · แพทย์ประจำบ้าน"
-              subtitle="เพิ่ม แก้ไข หรือลบข้อมูลแพทย์แต่ละชั้นปี วอร์ดปัจจุบัน เลขที่ใบประกอบวิชาชีพ และข้อมูลพื้นฐาน"
+              subtitle="เพิ่ม แก้ไข หรือลบรูปถ่ายและข้อมูลแพทย์แต่ละชั้นปี วอร์ดปัจจุบัน เลขที่ใบประกอบวิชาชีพ และข้อมูลพื้นฐาน"
               items={clinicalPersonnel}
               getId={(p) => p.id}
+              getAvatarUrl={(p) => p.photoUrl}
+              getAvatarName={(p) => p.fullName}
               getBadge={(p) =>
                 `${
                   p.category === 'intern'
@@ -2231,6 +2240,7 @@ export function AdminBackOfficeModal({
                 `${p.department} · ${p.currentWard} · ${p.phoneOrPager} · ${p.status}`
               }
               fields={[
+                { key: 'photoUrl', label: 'รูปประจำตัวสมาชิก', type: 'image', colSpan: 2 },
                 { key: 'personnelCode', label: 'รหัสประจำตัว (เช่น INT-6906)', type: 'text', required: true },
                 { key: 'fullName', label: 'ชื่อ-สกุล', type: 'text', required: true },
                 {
@@ -2277,6 +2287,7 @@ export function AdminBackOfficeModal({
                 { key: 'supervisingNote', label: 'บทบาทหน้าที่ / ข้อมูลเพิ่มเติม', type: 'textarea' },
               ]}
               createDefaults={() => ({
+                photoUrl: PRESET_MEMBER_PORTRAITS[0]?.url ?? '',
                 personnelCode: `DOC-${Date.now().toString().slice(-4)}`,
                 fullName: '',
                 category: 'intern',
@@ -2291,6 +2302,7 @@ export function AdminBackOfficeModal({
                 supervisingNote: '',
               })}
               toFormValues={(p) => ({
+                photoUrl: p.photoUrl ?? '',
                 personnelCode: p.personnelCode,
                 fullName: p.fullName,
                 category: p.category,
@@ -2306,6 +2318,7 @@ export function AdminBackOfficeModal({
               })}
               fromFormValues={(v, existing) => ({
                 id: existing?.id ?? `pers-${Date.now()}`,
+                photoUrl: sanitizeAvatarUrlInput(String(v.photoUrl ?? '')) ?? undefined,
                 personnelCode: String(v.personnelCode).trim(),
                 fullName: String(v.fullName).trim(),
                 category: v.category as ClinicalPersonnelCategory,
@@ -2339,9 +2352,11 @@ export function AdminBackOfficeModal({
           {domain === 'personnel' && subEntity === 'cohortStudents' && (
             <AdminEntityCrudList<CohortStudentRecord>
               title="ทำเนียบรายชื่อนักศึกษาแพทย์ชั้นคลินิก (ชั้นปีที่ 4–6)"
-              subtitle="เพิ่ม แก้ไข หรือลบรายชื่อนักศึกษาแพทย์แต่ละชั้นปี ยอดรวมบนแดชบอร์ดหน้าหลักจะอัปเดตอัตโนมัติ"
+              subtitle="เพิ่ม แก้ไข หรือลบรูปถ่ายและรายชื่อนักศึกษาแพทย์แต่ละชั้นปี ยอดรวมบนแดชบอร์ดหน้าหลักจะอัปเดตอัตโนมัติ"
               items={cohortStudents}
               getId={(s) => s.studentId}
+              getAvatarUrl={(s) => s.photoUrl || studentPhotos[s.studentId]}
+              getAvatarName={(s) => s.studentName}
               getBadge={(s) =>
                 `ชั้นปีที่ ${s.yearLevel}${s.yearLevel === '6' ? ' (Extern)' : ''} · ${s.group}`
               }
@@ -2350,6 +2365,7 @@ export function AdminBackOfficeModal({
                 `ที่ปรึกษา: ${s.advisorName ?? '-'} · ติดต่อ: ${s.contactInfo ?? '-'} · ${s.status ?? 'ฝึกปฏิบัติคลินิก'}`
               }
               fields={[
+                { key: 'photoUrl', label: 'รูปประจำตัวนักศึกษา', type: 'image', colSpan: 2 },
                 { key: 'studentId', label: 'รหัสนักศึกษา (เช่น 66104040)', type: 'text', required: true, readOnlyOnEdit: true },
                 { key: 'studentName', label: 'ชื่อ-สกุลนักศึกษาแพทย์', type: 'text', required: true },
                 {
@@ -2386,6 +2402,7 @@ export function AdminBackOfficeModal({
                 },
               ]}
               createDefaults={() => ({
+                photoUrl: PRESET_MEMBER_PORTRAITS[0]?.url ?? '',
                 studentId: `66104${Date.now().toString().slice(-3)}`,
                 studentName: 'นศพ. ',
                 yearLevel: '4',
@@ -2395,6 +2412,7 @@ export function AdminBackOfficeModal({
                 status: 'ฝึกปฏิบัติคลินิก',
               })}
               toFormValues={(s) => ({
+                photoUrl: s.photoUrl ?? studentPhotos[s.studentId] ?? '',
                 studentId: s.studentId,
                 studentName: s.studentName,
                 yearLevel: s.yearLevel,
@@ -2404,6 +2422,7 @@ export function AdminBackOfficeModal({
                 status: s.status ?? 'ฝึกปฏิบัติคลินิก',
               })}
               fromFormValues={(v, existing) => ({
+                photoUrl: sanitizeAvatarUrlInput(String(v.photoUrl ?? '')) ?? '',
                 studentId: existing?.studentId ?? String(v.studentId).trim(),
                 studentName: String(v.studentName).trim(),
                 yearLevel: v.yearLevel as AcademicYearLevel,
@@ -2418,16 +2437,19 @@ export function AdminBackOfficeModal({
                   return;
                 }
                 onSaveCohortStudents([item, ...cohortStudents]);
+                onSyncStudentPhoto?.(item.studentId, item.photoUrl ?? '');
                 onNotify(`เพิ่มนักศึกษา ${item.studentName} เรียบร้อยแล้ว`);
               }}
               onUpdate={(item) => {
                 onSaveCohortStudents(
                   cohortStudents.map((x) => (x.studentId === item.studentId ? item : x))
                 );
+                onSyncStudentPhoto?.(item.studentId, item.photoUrl ?? '');
                 onNotify(`อัปเดตข้อมูล ${item.studentName} เรียบร้อยแล้ว`);
               }}
               onDelete={(id) => {
                 onSaveCohortStudents(cohortStudents.filter((x) => x.studentId !== id));
+                onSyncStudentPhoto?.(id, '');
                 onNotify('ลบรายชื่อนักศึกษาแพทย์แล้ว');
               }}
             />

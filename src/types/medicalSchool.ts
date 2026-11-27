@@ -1,11 +1,21 @@
 export type UserRole = 'student' | 'faculty' | 'course_officer' | 'admin';
 
+export type MemberAccountStatus = 'ใช้งานปกติ' | 'ลาศึกษาต่อ/ประชุม' | 'ระงับชั่วคราว';
+
 export interface AuthUserProfile {
   username: string;
   role: UserRole;
   level: RoleAccessLevel;
   displayName: string;
   affiliation: string;
+  photoUrl?: string;
+  positionTitle?: string;
+  department?: string;
+  phone?: string;
+  email?: string;
+  licenseOrCode?: string;
+  status?: MemberAccountStatus;
+  notes?: string;
   studentId?: string;
   assignedCourseCodes?: string[];
   hasPasswordSet: boolean;
@@ -657,6 +667,7 @@ export interface CohortStudentRecord {
   studentName: string;
   yearLevel: AcademicYearLevel;
   group: string;
+  photoUrl?: string;
   advisorName?: string;
   contactInfo?: string;
   status?: 'กำลังศึกษา' | 'ฝึกปฏิบัติคลินิก' | 'พักการศึกษา';
@@ -677,6 +688,7 @@ export interface ClinicalPersonnelRecord {
   id: string;
   personnelCode: string;
   fullName: string;
+  photoUrl?: string;
   category: ClinicalPersonnelCategory;
   yearLevel: PersonnelYearTag;
   department: string;

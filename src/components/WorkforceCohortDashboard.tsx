@@ -567,6 +567,7 @@ export function WorkforceCohortDashboard({
                       <td className="py-2.5 px-4 font-medium text-slate-900">
                         <div className="flex items-center gap-2">
                           <StudentAvatar
+                            photoUrl={s.photoUrl}
                             studentId={s.studentId}
                             studentName={s.studentName}
                             studentPhotos={studentPhotos}
@@ -611,9 +612,19 @@ export function WorkforceCohortDashboard({
                         <div className="text-[#0284C7]">{p.medicalLicenseNo}</div>
                       </td>
                       <td className="py-2.5 px-4">
-                        <div className="font-medium text-slate-900">{p.fullName}</div>
-                        <div className="text-[11px] text-slate-500 line-clamp-1">
-                          {p.supervisingNote}
+                        <div className="flex items-center gap-2.5">
+                          <StudentAvatar
+                            photoUrl={p.photoUrl}
+                            studentName={p.fullName}
+                            studentPhotos={studentPhotos}
+                            size="xs"
+                          />
+                          <div className="min-w-0">
+                            <div className="font-medium text-slate-900">{p.fullName}</div>
+                            <div className="text-[11px] text-slate-500 line-clamp-1">
+                              {p.supervisingNote}
+                            </div>
+                          </div>
                         </div>
                       </td>
                       <td className="py-2.5 px-4 text-xs font-medium text-[#08347A] whitespace-nowrap">

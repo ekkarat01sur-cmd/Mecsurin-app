@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Menu, X } from 'lucide-react';
 import { ActiveTab } from '../types/medicalSchool';
+import { AgencyLogo } from './AgencyLogo';
 
 interface HeaderProps {
   activeTab: ActiveTab;
@@ -41,13 +42,17 @@ export function Header({
   return (
     <header className="sticky top-0 z-40 pt-[env(safe-area-inset-top)] bg-gradient-to-r from-[#04193E]/95 via-[#08347A]/95 to-[#0B46A0]/95 backdrop-blur-xl border-b border-sky-300/20 shadow-[0_8px_28px_-10px_rgba(4,25,62,0.55)]">
       <div className="max-w-[1280px] mx-auto px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-4 sm:gap-8">
-        {/* Zone 1: Single-line institutional wordmark */}
+        {/* Zone 1: Institutional emblem & single-line wordmark */}
         <button
           type="button"
           onClick={() => handleNavClick('overview')}
-          className="text-left font-serif text-lg sm:text-xl font-bold tracking-tight text-white whitespace-nowrap shrink-0 cursor-pointer hover:text-[#7DD3FC] transition-colors"
+          className="inline-flex items-center gap-2.5 text-left font-serif text-base sm:text-xl font-bold tracking-tight text-white whitespace-nowrap shrink-0 cursor-pointer hover:text-[#7DD3FC] transition-colors group"
         >
-          ศพค. โรงพยาบาลสุรินทร์
+          <AgencyLogo
+            size="sm"
+            className="transition-transform duration-200 group-hover:scale-105"
+          />
+          <span>ศพค. โรงพยาบาลสุรินทร์</span>
         </button>
 
         {/* Zone 2: 5 concise single-line text nav links (only when authenticated) */}

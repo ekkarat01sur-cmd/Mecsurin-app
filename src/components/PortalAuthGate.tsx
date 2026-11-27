@@ -15,6 +15,8 @@ import {
   loginAccount,
   setupAdminAccount,
 } from '../utils/authClient';
+import { AgencyLogo } from './AgencyLogo';
+import { StudentAvatar } from './StudentAvatar';
 
 interface PortalAuthGateProps {
   onAuthenticated: (token: string, user: AuthUserProfile) => void;
@@ -168,35 +170,38 @@ export function PortalAuthGate({ onAuthenticated }: PortalAuthGateProps) {
           />
 
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
-            <div className="space-y-2.5 max-w-2xl">
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="inline-flex items-center gap-2 text-xs font-semibold tracking-wide text-[#7DD3FC]">
-                  <Lock className="w-4 h-4" aria-hidden="true" />
-                  <span>การเข้าถึงข้อมูลแบบจำกัดสิทธิ์ตามตัวตน (Login-Gated Access Control)</span>
+            <div className="flex items-start gap-4 sm:gap-5 max-w-2xl">
+              <AgencyLogo size="lg" className="mt-0.5 animate-med-float" />
+              <div className="space-y-2.5">
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="inline-flex items-center gap-2 text-xs font-semibold tracking-wide text-[#7DD3FC]">
+                    <Lock className="w-4 h-4" aria-hidden="true" />
+                    <span>การเข้าถึงข้อมูลแบบจำกัดสิทธิ์ตามตัวตน (Login-Gated Access Control)</span>
+                  </div>
+                  <svg
+                    viewBox="0 0 120 24"
+                    className="w-20 h-4 text-[#38BDF8] shrink-0"
+                    fill="none"
+                    aria-hidden="true"
+                  >
+                    <path
+                      d="M0 12 H28 L34 12 L38 4 L43 20 L48 8 L53 15 L57 12 H88 L93 5 L98 18 L103 12 H120"
+                      stroke="currentColor"
+                      strokeWidth="1.75"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="animate-med-ecg"
+                    />
+                  </svg>
                 </div>
-                <svg
-                  viewBox="0 0 120 24"
-                  className="w-20 h-4 text-[#38BDF8] shrink-0"
-                  fill="none"
-                  aria-hidden="true"
-                >
-                  <path
-                    d="M0 12 H28 L34 12 L38 4 L43 20 L48 8 L53 15 L57 12 H88 L93 5 L98 18 L103 12 H120"
-                    stroke="currentColor"
-                    strokeWidth="1.75"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="animate-med-ecg"
-                  />
-                </svg>
+                <h1 className="font-serif text-2xl sm:text-3xl font-bold tracking-tight text-white">
+                  ศูนย์แพทยศาสตรศึกษาชั้นคลินิก โรงพยาบาลสุรินทร์
+                </h1>
+                <p className="text-sm text-sky-100/90 leading-relaxed">
+                  ข้อมูลผลประเมิน คะแนนเกรด E-Logbook ตารางเวรหอผู้ป่วย และระบบจัดการสมาชิกถูกแยกตามระดับสิทธิ์อย่างเคร่งครัด
+                  กรุณาลงชื่อเข้าสู่ระบบด้วย Username และ Password ประจำบุคคลเพื่อเข้าถึงข้อมูลในระดับสิทธิ์ของท่าน
+                </p>
               </div>
-              <h1 className="font-serif text-2xl sm:text-3xl font-bold tracking-tight text-white">
-                ศูนย์แพทยศาสตรศึกษาชั้นคลินิก โรงพยาบาลสุรินทร์
-              </h1>
-              <p className="text-sm text-sky-100/90 leading-relaxed">
-                ข้อมูลผลประเมิน คะแนนเกรด E-Logbook ตารางเวรหอผู้ป่วย และระบบจัดการสมาชิกถูกแยกตามระดับสิทธิ์อย่างเคร่งครัด
-                กรุณาลงชื่อเข้าสู่ระบบด้วย Username และ Password ประจำบุคคลเพื่อเข้าถึงข้อมูลในระดับสิทธิ์ของท่าน
-              </p>
             </div>
 
             <div className="grid grid-cols-2 gap-3 shrink-0 lg:w-[340px]">
@@ -429,12 +434,22 @@ export function PortalAuthGate({ onAuthenticated }: PortalAuthGateProps) {
                   onClick={() => setUsername(item.username)}
                   className="w-full px-5 py-2.5 text-left hover:bg-sky-50/70 transition-colors flex items-center justify-between gap-3 cursor-pointer"
                 >
-                  <div className="min-w-0">
-                    <div className="text-xs font-semibold text-slate-900 truncate">
-                      {item.displayName}
-                    </div>
-                    <div className="text-[11px] text-slate-500 truncate">
-                      {ROLE_LABELS[item.role]} · {item.affiliation}
+                  <div className="flex items-center gap-3 min-w-0">
+                    <StudentAvatar
+                      photoUrl={item.photoUrl}
+                      studentId={item.studentId}
+                      studentName={item.displayName}
+                      studentPhotos={{}}
+                      size="sm"
+                    />
+                    <div className="min-w-0">
+                      <div className="text-xs font-semibold text-slate-900 truncate">
+                        {item.displayName}
+                      </div>
+                      <div className="text-[11px] text-slate-500 truncate">
+                        {ROLE_LABELS[item.role]}
+                        {item.positionTitle ? ` · ${item.positionTitle}` : ''} · {item.affiliation}
+                      </div>
                     </div>
                   </div>
                   <div className="text-right shrink-0">

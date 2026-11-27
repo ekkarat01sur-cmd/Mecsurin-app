@@ -1,15 +1,25 @@
-import { COHORT_STUDENTS } from '../data/initialMedicalData';
+import {
+  COHORT_STUDENTS,
+  IMAGE_ASSETS,
+  INITIAL_STUDENT_PHOTOS,
+} from '../data/initialMedicalData';
 import {
   AuthUserProfile,
+  MemberAccountStatus,
   RoleAccessLevel,
   UserRole,
 } from '../types/medicalSchool';
+import { sanitizeAvatarUrlInput } from './imageUtils';
 
 export interface BootstrapDirectoryEntry {
   username: string;
   role: UserRole;
   displayName: string;
   affiliation: string;
+  photoUrl?: string;
+  positionTitle?: string;
+  department?: string;
+  status?: MemberAccountStatus;
   studentId?: string;
   assignedCourseCodes?: string[];
   hasPasswordSet: boolean;
@@ -29,6 +39,14 @@ interface StoredStaticAccount {
   level: RoleAccessLevel;
   displayName: string;
   affiliation: string;
+  photoUrl?: string;
+  positionTitle?: string;
+  department?: string;
+  phone?: string;
+  email?: string;
+  licenseOrCode?: string;
+  status?: MemberAccountStatus;
+  notes?: string;
   studentId?: string;
   assignedCourseCodes?: string[];
   salt?: string;
@@ -62,6 +80,13 @@ function buildSeedStaticAccounts(): StoredStaticAccount[] {
       level: 3,
       displayName: 'ประธานคณะกรรมการบริหารหลักสูตรและฝ่ายวิชาการ',
       affiliation: 'สำนักงานศูนย์แพทยศาสตรศึกษาชั้นคลินิก รพ.สุรินทร์',
+      photoUrl: IMAGE_ASSETS.studentMaleExtern,
+      positionTitle: 'ผู้อำนวยการ / ประธานหลักสูตร ศพค.',
+      department: 'สำนักงานศูนย์แพทยศาสตรศึกษาชั้นคลินิก',
+      phone: 'ภายใน 2001 · 044-511-006',
+      email: 'mec-admin@surinhospital.go.th',
+      licenseOrCode: 'MEC-ADMIN-01',
+      status: 'ใช้งานปกติ',
       mustChangePassword: false,
     },
     {
@@ -70,6 +95,13 @@ function buildSeedStaticAccounts(): StoredStaticAccount[] {
       level: 3,
       displayName: 'นางสาวณัฐริกา ใจซื่อ (นักวิชาการรายวิชา กุมารฯ)',
       affiliation: 'กลุ่มงานกุมารเวชศาสตร์ (SUR-PED-502)',
+      photoUrl: IMAGE_ASSETS.studentFemaleMed1,
+      positionTitle: 'นักวิชาการศึกษาประจำรายวิชา',
+      department: 'กลุ่มงานกุมารเวชศาสตร์',
+      phone: 'ภายใน 2209',
+      email: 'natrika.j@surinhospital.go.th',
+      licenseOrCode: 'OFF-PED-01',
+      status: 'ใช้งานปกติ',
       assignedCourseCodes: ['SUR-PED-502'],
       mustChangePassword: false,
     },
@@ -79,6 +111,13 @@ function buildSeedStaticAccounts(): StoredStaticAccount[] {
       level: 3,
       displayName: 'นายธีระวัฒน์ สุริยา (นักวิชาการรายวิชา อายุรฯ)',
       affiliation: 'กลุ่มงานอายุรศาสตร์ (SUR-MED-401)',
+      photoUrl: IMAGE_ASSETS.studentMaleMed2,
+      positionTitle: 'นักวิชาการศึกษาประจำรายวิชา',
+      department: 'กลุ่มงานอายุรศาสตร์',
+      phone: 'ภายใน 2109',
+      email: 'teerawat.s@surinhospital.go.th',
+      licenseOrCode: 'OFF-MED-01',
+      status: 'ใช้งานปกติ',
       assignedCourseCodes: ['SUR-MED-401'],
       mustChangePassword: false,
     },
@@ -88,6 +127,13 @@ function buildSeedStaticAccounts(): StoredStaticAccount[] {
       level: 3,
       displayName: 'นางสาวศศิวิมล พูลสุข (นักวิชาการรายวิชา ศัลยฯ)',
       affiliation: 'กลุ่มงานศัลยศาสตร์ (SUR-SURG-402)',
+      photoUrl: IMAGE_ASSETS.studentFemaleMed2,
+      positionTitle: 'นักวิชาการศึกษาประจำรายวิชา',
+      department: 'กลุ่มงานศัลยศาสตร์',
+      phone: 'ภายใน 2309',
+      email: 'sasiwimon.p@surinhospital.go.th',
+      licenseOrCode: 'OFF-SURG-01',
+      status: 'ใช้งานปกติ',
       assignedCourseCodes: ['SUR-SURG-402'],
       mustChangePassword: false,
     },
@@ -97,6 +143,13 @@ function buildSeedStaticAccounts(): StoredStaticAccount[] {
       level: 3,
       displayName: 'นางสาวปิยะพร จันทร์งาม (นักวิชาการรายวิชา สูติฯ)',
       affiliation: 'กลุ่มงานสูติศาสตร์-นรีเวชวิทยา (SUR-OBG-501)',
+      photoUrl: IMAGE_ASSETS.studentFemaleMed1,
+      positionTitle: 'นักวิชาการศึกษาประจำรายวิชา',
+      department: 'กลุ่มงานสูติศาสตร์-นรีเวชวิทยา',
+      phone: 'ภายใน 2409',
+      email: 'piyaporn.c@surinhospital.go.th',
+      licenseOrCode: 'OFF-OBG-01',
+      status: 'ใช้งานปกติ',
       assignedCourseCodes: ['SUR-OBG-501'],
       mustChangePassword: false,
     },
@@ -106,6 +159,13 @@ function buildSeedStaticAccounts(): StoredStaticAccount[] {
       level: 2,
       displayName: 'อ.ภิญญดา แก้วปลั่ง',
       affiliation: 'อาจารย์แพทย์ กลุ่มงานกุมารเวชศาสตร์',
+      photoUrl: IMAGE_ASSETS.studentFemaleMed2,
+      positionTitle: 'อาจารย์แพทย์พี่เลี้ยง / ประเมิน OSCE',
+      department: 'กลุ่มงานกุมารเวชศาสตร์',
+      phone: 'ภายใน 2204',
+      email: 'pinyada.k@surinhospital.go.th',
+      licenseOrCode: 'ว.49812',
+      status: 'ใช้งานปกติ',
       assignedCourseCodes: ['SUR-PED-502'],
       mustChangePassword: false,
     },
@@ -115,6 +175,13 @@ function buildSeedStaticAccounts(): StoredStaticAccount[] {
       level: 2,
       displayName: 'พญ. นภัสสร สุขเจริญ',
       affiliation: 'หัวหน้ากลุ่มงานกุมารเวชศาสตร์',
+      photoUrl: IMAGE_ASSETS.studentFemaleMed1,
+      positionTitle: 'หัวหน้ากลุ่มงานกุมารเวชศาสตร์',
+      department: 'กลุ่มงานกุมารเวชศาสตร์',
+      phone: 'ภายใน 2201',
+      email: 'napassorn.s@surinhospital.go.th',
+      licenseOrCode: 'ว.45630',
+      status: 'ใช้งานปกติ',
       assignedCourseCodes: ['SUR-PED-502'],
       mustChangePassword: false,
     },
@@ -124,6 +191,13 @@ function buildSeedStaticAccounts(): StoredStaticAccount[] {
       level: 2,
       displayName: 'นพ. เอกรัตน์ วัฒนสุรินทร์',
       affiliation: 'หัวหน้ากลุ่มงานอายุรศาสตร์',
+      photoUrl: IMAGE_ASSETS.studentMaleExtern,
+      positionTitle: 'หัวหน้ากลุ่มงานอายุรศาสตร์',
+      department: 'กลุ่มงานอายุรศาสตร์',
+      phone: 'ภายใน 2101',
+      email: 'ekkarat.w@surinhospital.go.th',
+      licenseOrCode: 'ว.41208',
+      status: 'ใช้งานปกติ',
       assignedCourseCodes: ['SUR-MED-401'],
       mustChangePassword: false,
     },
@@ -133,6 +207,13 @@ function buildSeedStaticAccounts(): StoredStaticAccount[] {
       level: 2,
       displayName: 'นพ. กิตติพงษ์ จันทรา',
       affiliation: 'หัวหน้ากลุ่มงานศัลยศาสตร์',
+      photoUrl: IMAGE_ASSETS.studentMaleMed2,
+      positionTitle: 'หัวหน้ากลุ่มงานศัลยศาสตร์',
+      department: 'กลุ่มงานศัลยศาสตร์',
+      phone: 'ภายใน 2301',
+      email: 'kittipong.c@surinhospital.go.th',
+      licenseOrCode: 'ว.42815',
+      status: 'ใช้งานปกติ',
       assignedCourseCodes: ['SUR-SURG-402'],
       mustChangePassword: false,
     },
@@ -142,6 +223,13 @@ function buildSeedStaticAccounts(): StoredStaticAccount[] {
       level: 2,
       displayName: 'พญ. ศิริพร วงศ์สุวรรณ',
       affiliation: 'หัวหน้ากลุ่มงานสูติศาสตร์-นรีเวชวิทยา',
+      photoUrl: IMAGE_ASSETS.studentFemaleMed1,
+      positionTitle: 'หัวหน้ากลุ่มงานสูติศาสตร์-นรีเวชวิทยา',
+      department: 'กลุ่มงานสูติศาสตร์-นรีเวชวิทยา',
+      phone: 'ภายใน 2401',
+      email: 'siriporn.w@surinhospital.go.th',
+      licenseOrCode: 'ว.44109',
+      status: 'ใช้งานปกติ',
       assignedCourseCodes: ['SUR-OBG-501'],
       mustChangePassword: false,
     },
@@ -151,6 +239,13 @@ function buildSeedStaticAccounts(): StoredStaticAccount[] {
       level: 2,
       displayName: 'นพ. ภูริทัต ศรีสวัสดิ์',
       affiliation: 'หัวหน้ากลุ่มงานเวชศาสตร์ฉุกเฉิน',
+      photoUrl: IMAGE_ASSETS.studentMaleExtern,
+      positionTitle: 'หัวหน้ากลุ่มงานเวชศาสตร์ฉุกเฉิน',
+      department: 'กลุ่มงานเวชศาสตร์ฉุกเฉิน',
+      phone: 'ภายใน 1660',
+      email: 'phuritat.s@surinhospital.go.th',
+      licenseOrCode: 'ว.47922',
+      status: 'ใช้งานปกติ',
       assignedCourseCodes: ['SUR-MED-401', 'SUR-SURG-402'],
       mustChangePassword: false,
     },
@@ -162,6 +257,13 @@ function buildSeedStaticAccounts(): StoredStaticAccount[] {
     level: 1,
     displayName: s.studentName,
     affiliation: `ชั้นปีที่ ${s.yearLevel} (${s.group}) · รหัส ${s.studentId}`,
+    photoUrl: s.photoUrl ?? INITIAL_STUDENT_PHOTOS[s.studentId],
+    positionTitle: `นักศึกษาแพทย์ชั้นปีที่ ${s.yearLevel}${s.yearLevel === '6' ? ' (Extern)' : ''}`,
+    department: 'ศูนย์แพทยศาสตรศึกษาชั้นคลินิก รพ.สุรินทร์',
+    phone: s.contactInfo,
+    email: `${s.studentId}@student.surinmec.ac.th`,
+    licenseOrCode: s.studentId,
+    status: 'ใช้งานปกติ',
     studentId: s.studentId,
     mustChangePassword: true,
   }));
@@ -170,20 +272,42 @@ function buildSeedStaticAccounts(): StoredStaticAccount[] {
 }
 
 function loadStaticAccountsMap(): Map<string, StoredStaticAccount> {
+  const seeded = buildSeedStaticAccounts();
+  const seedByUsername = new Map(seeded.map((acc) => [acc.username, acc]));
   try {
     const raw = localStorage.getItem(STATIC_ACCOUNTS_STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw) as StoredStaticAccount[];
       if (Array.isArray(parsed) && parsed.length > 0) {
-        return new Map(parsed.map((acc) => [acc.username, acc]));
+        const merged = new Map<string, StoredStaticAccount>();
+        for (const acc of parsed) {
+          if (!acc || typeof acc.username !== 'string') continue;
+          const seed = seedByUsername.get(acc.username);
+          merged.set(acc.username, {
+            ...seed,
+            ...acc,
+            photoUrl: acc.photoUrl !== undefined ? acc.photoUrl : seed?.photoUrl,
+            positionTitle: acc.positionTitle ?? seed?.positionTitle,
+            department: acc.department ?? seed?.department,
+            phone: acc.phone ?? seed?.phone,
+            email: acc.email ?? seed?.email,
+            licenseOrCode: acc.licenseOrCode ?? seed?.licenseOrCode,
+            status: acc.status ?? seed?.status ?? 'ใช้งานปกติ',
+          });
+        }
+        for (const [uname, seed] of seedByUsername.entries()) {
+          if (!merged.has(uname)) {
+            merged.set(uname, seed);
+          }
+        }
+        return merged;
       }
     }
   } catch {
     // Fallback to seed accounts
   }
-  const seeded = buildSeedStaticAccounts();
   saveStaticAccounts(seeded);
-  return new Map(seeded.map((acc) => [acc.username, acc]));
+  return seedByUsername;
 }
 
 function saveStaticAccounts(accounts: Iterable<StoredStaticAccount>): void {
@@ -266,6 +390,14 @@ function toPublicProfile(acc: StoredStaticAccount): AuthUserProfile {
     level: acc.level,
     displayName: acc.displayName,
     affiliation: acc.affiliation,
+    photoUrl: acc.photoUrl || undefined,
+    positionTitle: acc.positionTitle,
+    department: acc.department,
+    phone: acc.phone,
+    email: acc.email,
+    licenseOrCode: acc.licenseOrCode,
+    status: acc.status ?? 'ใช้งานปกติ',
+    notes: acc.notes,
     studentId: acc.studentId,
     assignedCourseCodes: acc.assignedCourseCodes,
     hasPasswordSet: Boolean(acc.passwordHash && acc.salt),
@@ -370,6 +502,10 @@ export async function getBootstrapStatus(): Promise<{
       role: acc.role,
       displayName: acc.displayName,
       affiliation: acc.affiliation,
+      photoUrl: acc.photoUrl || undefined,
+      positionTitle: acc.positionTitle,
+      department: acc.department,
+      status: acc.status ?? 'ใช้งานปกติ',
       studentId: acc.studentId,
       assignedCourseCodes: acc.assignedCourseCodes,
       hasPasswordSet: Boolean(acc.passwordHash),
@@ -466,6 +602,12 @@ export async function loginAccount(
       ok: false,
       error:
         'บัญชีนี้ยังไม่ได้ออกรหัสผ่าน กรุณาติดต่อผู้ดูแลระบบหรือนักวิชาการประจำรายวิชาเพื่อออกรหัสผ่านเริ่มต้น',
+    };
+  }
+  if (account.status === 'ระงับชั่วคราว') {
+    return {
+      ok: false,
+      error: 'บัญชีสมาชิกนี้ถูกระงับการใช้งานชั่วคราว กรุณาติดต่อผู้ดูแลระบบ',
     };
   }
   const valid = await verifyPasswordWeb(password, account.salt, account.passwordHash);
@@ -756,6 +898,14 @@ export async function createMemberAccount(
     displayName: string;
     role: UserRole;
     affiliation?: string;
+    photoUrl?: string;
+    positionTitle?: string;
+    department?: string;
+    phone?: string;
+    email?: string;
+    licenseOrCode?: string;
+    status?: MemberAccountStatus;
+    notes?: string;
     studentId?: string;
     assignedCourseCodes?: string[];
   }
@@ -826,6 +976,7 @@ export async function createMemberAccount(
 
   const plainPassword = customPw || generateReadableTemporaryPassword();
   const { salt, passwordHash } = await hashPasswordWeb(plainPassword);
+  const cleanPhoto = sanitizeAvatarUrlInput(payload.photoUrl);
   const newAcc: StoredStaticAccount = {
     username: cleanUsername,
     role: payload.role,
@@ -833,6 +984,14 @@ export async function createMemberAccount(
     displayName: payload.displayName.trim() || cleanUsername,
     affiliation:
       payload.affiliation?.trim() || 'ศูนย์แพทยศาสตรศึกษาชั้นคลินิก รพ.สุรินทร์',
+    photoUrl: cleanPhoto,
+    positionTitle: payload.positionTitle?.trim() || undefined,
+    department: payload.department?.trim() || undefined,
+    phone: payload.phone?.trim() || undefined,
+    email: payload.email?.trim() || undefined,
+    licenseOrCode: payload.licenseOrCode?.trim() || undefined,
+    status: payload.status ?? 'ใช้งานปกติ',
+    notes: payload.notes?.trim() || undefined,
     studentId:
       payload.role === 'student' ? payload.studentId?.trim() || undefined : undefined,
     assignedCourseCodes:
@@ -868,8 +1027,17 @@ export async function updateMemberAccount(
     displayName?: string;
     role?: UserRole;
     affiliation?: string;
+    photoUrl?: string;
+    positionTitle?: string;
+    department?: string;
+    phone?: string;
+    email?: string;
+    licenseOrCode?: string;
+    status?: MemberAccountStatus;
+    notes?: string;
     studentId?: string;
     assignedCourseCodes?: string[];
+    newPassword?: string;
   }
 ): Promise<{ ok: boolean; user?: AuthUserProfile; error?: string }> {
   if (!token.startsWith('static.')) {
@@ -934,6 +1102,41 @@ export async function updateMemberAccount(
   if (payload.affiliation?.trim()) {
     target.affiliation = payload.affiliation.trim().slice(0, 160);
   }
+  if (payload.photoUrl !== undefined) {
+    const trimmed = payload.photoUrl.trim();
+    if (!trimmed) {
+      target.photoUrl = '';
+    } else {
+      const cleaned = sanitizeAvatarUrlInput(trimmed);
+      if (cleaned) {
+        target.photoUrl = cleaned;
+      }
+    }
+  }
+  if (payload.positionTitle !== undefined) {
+    target.positionTitle = payload.positionTitle.trim().slice(0, 120) || undefined;
+  }
+  if (payload.department !== undefined) {
+    target.department = payload.department.trim().slice(0, 120) || undefined;
+  }
+  if (payload.phone !== undefined) {
+    target.phone = payload.phone.trim().slice(0, 60) || undefined;
+  }
+  if (payload.email !== undefined) {
+    target.email = payload.email.trim().slice(0, 120) || undefined;
+  }
+  if (payload.licenseOrCode !== undefined) {
+    target.licenseOrCode = payload.licenseOrCode.trim().slice(0, 60) || undefined;
+  }
+  if (payload.status !== undefined) {
+    if (target.username === actor.username && payload.status === 'ระงับชั่วคราว') {
+      return { ok: false, error: 'ไม่สามารถระงับบัญชีของตนเองที่กำลังใช้งานอยู่ได้' };
+    }
+    target.status = payload.status;
+  }
+  if (payload.notes !== undefined) {
+    target.notes = payload.notes.trim().slice(0, 400) || undefined;
+  }
   if (payload.studentId !== undefined) {
     target.studentId = payload.studentId.trim() || undefined;
   }
@@ -942,6 +1145,16 @@ export async function updateMemberAccount(
       payload.assignedCourseCodes.length > 0
         ? payload.assignedCourseCodes
         : undefined;
+  }
+  if (payload.newPassword?.trim()) {
+    const cleanNew = payload.newPassword.trim();
+    if (cleanNew.length < 8 || cleanNew.length > 72) {
+      return { ok: false, error: 'รหัสผ่านใหม่ต้องมีความยาว 8–72 ตัวอักษร' };
+    }
+    const { salt, passwordHash } = await hashPasswordWeb(cleanNew);
+    target.salt = salt;
+    target.passwordHash = passwordHash;
+    target.mustChangePassword = target.username !== 'admin';
   }
 
   saveStaticAccounts(accounts.values());

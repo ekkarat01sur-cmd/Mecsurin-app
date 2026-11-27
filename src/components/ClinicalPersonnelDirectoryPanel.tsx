@@ -409,25 +409,34 @@ export function ClinicalPersonnelDirectoryPanel({
       {selectedPerson && (
         <div className="bg-[#091A32] text-white rounded-xl p-5 sm:p-6 space-y-4">
           <div className="flex items-start justify-between gap-4">
-            <div className="space-y-1">
-              <div className="text-xs font-medium text-[#5EEAD4] flex flex-wrap items-center gap-x-2 gap-y-1 tabular-nums">
-                <span>{CATEGORY_LABELS[selectedPerson.category]}</span>
-                <span aria-hidden="true">·</span>
-                <span>{selectedPerson.yearLevel}</span>
-                <span aria-hidden="true">·</span>
-                <span className="font-mono">{selectedPerson.personnelCode}</span>
-                <span aria-hidden="true">·</span>
-                <span className="font-mono">{selectedPerson.medicalLicenseNo}</span>
+            <div className="flex items-start gap-4 min-w-0">
+              <StudentAvatar
+                photoUrl={selectedPerson.photoUrl}
+                studentName={selectedPerson.fullName}
+                studentPhotos={studentPhotos}
+                size="lg"
+                className="border-white/25"
+              />
+              <div className="space-y-1 min-w-0">
+                <div className="text-xs font-medium text-[#5EEAD4] flex flex-wrap items-center gap-x-2 gap-y-1 tabular-nums">
+                  <span>{CATEGORY_LABELS[selectedPerson.category]}</span>
+                  <span aria-hidden="true">·</span>
+                  <span>{selectedPerson.yearLevel}</span>
+                  <span aria-hidden="true">·</span>
+                  <span className="font-mono">{selectedPerson.personnelCode}</span>
+                  <span aria-hidden="true">·</span>
+                  <span className="font-mono">{selectedPerson.medicalLicenseNo}</span>
+                </div>
+                <h3 className="text-lg font-semibold text-white">{selectedPerson.fullName}</h3>
+                <p className="text-xs text-slate-300">
+                  {selectedPerson.department} · {selectedPerson.currentWard}
+                </p>
               </div>
-              <h3 className="text-lg font-semibold text-white">{selectedPerson.fullName}</h3>
-              <p className="text-xs text-slate-300">
-                {selectedPerson.department} · {selectedPerson.currentWard}
-              </p>
             </div>
             <button
               type="button"
               onClick={() => setSelectedPersonId(null)}
-              className="w-8 h-8 inline-flex items-center justify-center rounded-lg text-slate-300 hover:bg-white/10 cursor-pointer"
+              className="w-8 h-8 inline-flex items-center justify-center rounded-lg text-slate-300 hover:bg-white/10 cursor-pointer shrink-0"
               aria-label="ปิดรายละเอียด"
             >
               <X className="w-4 h-4" />
@@ -489,6 +498,7 @@ export function ClinicalPersonnelDirectoryPanel({
                       <td className="py-3 px-4 font-medium text-slate-900">
                         <div className="flex items-center gap-2.5">
                           <StudentAvatar
+                            photoUrl={s.photoUrl}
                             studentId={s.studentId}
                             studentName={s.studentName}
                             studentPhotos={studentPhotos}
@@ -525,6 +535,7 @@ export function ClinicalPersonnelDirectoryPanel({
               >
                 <div className="flex items-start gap-3">
                   <StudentAvatar
+                    photoUrl={s.photoUrl}
                     studentId={s.studentId}
                     studentName={s.studentName}
                     studentPhotos={studentPhotos}
@@ -586,9 +597,19 @@ export function ClinicalPersonnelDirectoryPanel({
                       <div className="text-[#0F766E]">{p.medicalLicenseNo}</div>
                     </td>
                     <td className="py-3 px-4">
-                      <div className="font-medium text-slate-900">{p.fullName}</div>
-                      <div className="text-xs text-slate-500 line-clamp-1">
-                        {p.supervisingNote}
+                      <div className="flex items-center gap-2.5">
+                        <StudentAvatar
+                          photoUrl={p.photoUrl}
+                          studentName={p.fullName}
+                          studentPhotos={studentPhotos}
+                          size="xs"
+                        />
+                        <div className="min-w-0">
+                          <div className="font-medium text-slate-900">{p.fullName}</div>
+                          <div className="text-xs text-slate-500 line-clamp-1">
+                            {p.supervisingNote}
+                          </div>
+                        </div>
                       </div>
                     </td>
                     <td className="py-3 px-4 text-xs whitespace-nowrap">
@@ -643,18 +664,26 @@ export function ClinicalPersonnelDirectoryPanel({
                     : 'border-slate-200 hover:border-slate-300'
                 }`}
               >
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between gap-2 text-xs text-slate-500 tabular-nums">
-                    <span className="font-medium text-[#0F766E]">
-                      {CATEGORY_LABELS[p.category]} · {p.yearLevel}
-                    </span>
-                    <span className="font-mono">{p.medicalLicenseNo}</span>
-                  </div>
-                  <h3 className="text-sm font-semibold text-slate-900 leading-snug">
-                    {p.fullName}
-                  </h3>
-                  <div className="text-xs text-slate-600">
-                    {p.department} · {p.currentWard}
+                <div className="flex items-start gap-3">
+                  <StudentAvatar
+                    photoUrl={p.photoUrl}
+                    studentName={p.fullName}
+                    studentPhotos={studentPhotos}
+                    size="md"
+                  />
+                  <div className="space-y-1 min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-2 text-xs text-slate-500 tabular-nums">
+                      <span className="font-medium text-[#0F766E]">
+                        {CATEGORY_LABELS[p.category]} · {p.yearLevel}
+                      </span>
+                      <span className="font-mono">{p.medicalLicenseNo}</span>
+                    </div>
+                    <h3 className="text-sm font-semibold text-slate-900 leading-snug">
+                      {p.fullName}
+                    </h3>
+                    <div className="text-xs text-slate-600">
+                      {p.department} · {p.currentWard}
+                    </div>
                   </div>
                 </div>
 

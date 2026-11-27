@@ -1,4 +1,5 @@
 import { ActiveTab } from '../types/medicalSchool';
+import { AgencyLogo } from './AgencyLogo';
 
 interface FooterProps {
   isAuthenticated?: boolean;
@@ -14,13 +15,16 @@ export function Footer({ isAuthenticated = true, onSelectTab }: FooterProps) {
     >
       <div className="med-gold-hairline w-full" aria-hidden="true" />
       <div className="max-w-[1280px] mx-auto px-4 sm:px-6 py-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div className="space-y-1.5">
-          <div className="font-serif text-base font-bold text-white">
-            ศูนย์แพทยศาสตรศึกษาชั้นคลินิก โรงพยาบาลสุรินทร์
+        <div className="flex items-center gap-3.5">
+          <AgencyLogo size="md" />
+          <div className="space-y-1">
+            <div className="font-serif text-base font-bold text-white">
+              ศูนย์แพทยศาสตรศึกษาชั้นคลินิก โรงพยาบาลสุรินทร์
+            </div>
+            <p className="text-xs text-sky-200/75">
+              เลขที่ 68 ถนนหลักเมือง ตำบลในเมือง อำเภอเมืองสุรินทร์ จังหวัดสุรินทร์ 32000 · โทรศัพท์ 044-511-006
+            </p>
           </div>
-          <p className="text-xs text-sky-200/75">
-            เลขที่ 68 ถนนหลักเมือง ตำบลในเมือง อำเภอเมืองสุรินทร์ จังหวัดสุรินทร์ 32000 · โทรศัพท์ 044-511-006
-          </p>
         </div>
 
         {isAuthenticated && (
